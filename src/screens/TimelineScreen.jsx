@@ -1,5 +1,7 @@
 import { C, F } from '../tokens.js';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
+import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
+import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
 import { formatRands } from '../lib/money.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 
@@ -42,7 +44,7 @@ export function TimelineScreen() {
 
   return (
     <div>
-      <h1 style={{ fontFamily: F.serif, fontSize: '1.5rem', marginBottom: '1.25rem' }}>Timeline</h1>
+      <ScreenHeader title="Timeline" showSearch />
       {[...groups.entries()].map(([label, items]) => (
         <div key={label} style={{ marginBottom: '1.5rem' }}>
           <span className="label">{label}</span>
@@ -52,13 +54,14 @@ export function TimelineScreen() {
                 key={e.id}
                 style={{
                   display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
+                  alignItems: 'center',
+                  gap: '0.75rem',
                   padding: '0.65rem 0',
                   borderBottom: `1px solid ${C.line}`,
                 }}
               >
-                <div>
+                <CategoryIcon category={e.category} direction={e.direction} />
+                <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ color: C.ink }}>{e.merchant}</p>
                   <p style={{ color: C.slate, fontSize: '0.8rem', textTransform: 'capitalize' }}>
                     {e.category.replace('_', ' ')}

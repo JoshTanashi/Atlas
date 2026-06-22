@@ -1,7 +1,11 @@
+import { Percent, Wallet, Hourglass } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { Button } from '../components/ui/Button.jsx';
+import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
+import { StatTile } from '../components/ui/StatTile.jsx';
+import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
 import { formatRands } from '../lib/money.js';
 import { navigate } from '../lib/nav.js';
 import { useEvents } from '../hooks/useEvents.jsx';
@@ -20,6 +24,7 @@ export function DashboardScreen() {
   const hasAccounts = accounts.length > 0;
   const rate = hasIncome ? savingsRate(income.monthly_income_cents, expenseCents) : null;
   const worth = hasAccounts ? netWorth(accounts, debts) : null;
+  const spendOfIncomePct = hasIncome ? Math.min(1, expenseCents / income.monthly_income_cents) : null;
 
   let runway = null;
   if (hasAccounts) {
@@ -33,54 +38,68 @@ export function DashboardScreen() {
 
   return (
     <div>
-      <h1 style={{ fontFamily: F.serif, fontSize: '1.5rem', marginBottom: '1.25rem' }}>This Month</h1>
+      <ScreenHeader title="This Month" showSearch />
 
       <Card style={{ marginBottom: '1rem' }}>
         <span className="label">Spent</span>
-        <p style={{ fontFamily: F.serif, fontSize: '1.8rem', color: C.ink }}>{formatRands(expenseCents)}</p>
-        {incomeCents > 0 && (
+        <p style={{ fontFamily: F.serif, fontSize: '2rem', color: C.ink, marginTop: '0.2rem' }}>{formatRands(expenseCents)}</p>
+        {hasIncome ? (
+          <>
+            <div style={{ height: '8px', background: C.line, borderRadius: '4px', overflow: 'hidden', marginTop: '0.75rem' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${spendOfIncomePct * 100}%`,
+                  background: spendOfIncomePct >= 1 ? C.over : C.sage,
+                  transition: 'width 0.2s ease',
+                }}
+              />
+            </div>
+            <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.4rem' }}>
+              {(spendOfIncomePct * 100).toFixed(0)}% of your {formatRands(income.monthly_income_cents)} income so far this month.
+            </p>
+          </>
+        ) : incomeCents > 0 ? (
           <p style={{ color: C.slate, fontSize: '0.85rem', marginTop: '0.25rem' }}>
             Income logged: {formatRands(incomeCents)}
           </p>
-        )}
+        ) : null}
       </Card>
 
-      {hasIncome ? (
-        <Card style={{ marginBottom: '1rem' }}>
-          <span className="label">Savings rate</span>
-          <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: rate < 0 ? C.over : C.sageDeep }}>
-            {(rate * 100).toFixed(1)}%
-          </p>
-          <p style={{ color: C.slate, fontSize: '0.85rem' }}>
-            {rate >= 0 ? "You're saving" : "You've spent more than your income"} this month.
-          </p>
-        </Card>
+      {hasIncome || hasAccounts ? (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+          {hasIncome && (
+            <StatTile
+              icon={Percent}
+              label="Savings rate"
+              value={`${(rate * 100).toFixed(0)}%`}
+              valueColor={rate < 0 ? C.over : C.sageDeep}
+              helper={rate >= 0 ? `Keeping R${(rate * 100).toFixed(0)} of every R100 earned` : 'Spending more than you earn'}
+            />
+          )}
+          {hasAccounts && (
+            <StatTile
+              icon={Wallet}
+              label="Net worth"
+              value={formatRands(worth)}
+              helper={debts.length > 0 ? 'Balances minus debts' : 'Total across accounts'}
+            />
+          )}
+          {runway && (
+            <StatTile
+              icon={Hourglass}
+              label="Runway"
+              value={`${runway.months.toFixed(1)} mo`}
+              helper={runway.estimated ? 'Estimate — limited history' : 'At your current spend'}
+            />
+          )}
+        </div>
       ) : (
         <EmptyState
-          title="Add your income"
-          body="See how much you're saving this month."
-          action={<Button variant="secondary" onClick={() => navigate('/me')}>Add income →</Button>}
+          title="Add your income and balances"
+          body="Unlock your savings rate, net worth, and runway."
+          action={<Button variant="secondary" onClick={() => navigate('/me')}>Set up Me →</Button>}
         />
-      )}
-
-      {hasAccounts ? (
-        <Card style={{ marginTop: '1rem', marginBottom: '1rem' }}>
-          <span className="label">Net worth</span>
-          <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>{formatRands(worth)}</p>
-          {runway && (
-            <p style={{ color: C.slate, fontSize: '0.85rem', marginTop: '0.25rem' }}>
-              Runway: {runway.months.toFixed(1)} months{runway.estimated ? ' (estimate, limited history)' : ''}
-            </p>
-          )}
-        </Card>
-      ) : (
-        <div style={{ marginTop: '1rem' }}>
-          <EmptyState
-            title="Add your balances"
-            body="See your net worth and emergency-fund runway."
-            action={<Button variant="secondary" onClick={() => navigate('/me')}>Add balances →</Button>}
-          />
-        </div>
       )}
 
       <div style={{ marginTop: '1rem' }}>
@@ -92,8 +111,9 @@ export function DashboardScreen() {
             </p>
           ) : (
             events.slice(0, 5).map((e) => (
-              <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderTop: `1px solid ${C.line}` }}>
-                <span style={{ color: C.ink }}>{e.merchant}</span>
+              <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderTop: `1px solid ${C.line}` }}>
+                <CategoryIcon category={e.category} direction={e.direction} />
+                <span style={{ color: C.ink, flex: 1 }}>{e.merchant}</span>
                 <span style={{ color: e.direction === 'income' ? C.sageDeep : C.ink, fontFamily: F.serif }}>
                   {e.direction === 'income' ? '+' : '-'}{formatRands(e.amount_cents)}
                 </span>

@@ -17,3 +17,5 @@ export const F = {
   serif: "'Fraunces', serif", // display, headlines, key numbers
   sans: "'DM Sans', sans-serif", // body, UI
 };
+
+export const SHADOW = '0 1px 2px rgba(43, 42, 38, 0.04), 0 4px 16px rgba(43, 42, 38, 0.06)';

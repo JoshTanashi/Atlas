@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { C, F } from '../tokens.js';
 import { Input } from '../components/ui/Input.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
+import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
 import { formatRands } from '../lib/money.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 
@@ -34,8 +35,9 @@ export function SearchScreen() {
       )}
 
       {results.map((e) => (
-        <div key={e.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.65rem 0', borderBottom: `1px solid ${C.line}` }}>
-          <div>
+        <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.65rem 0', borderBottom: `1px solid ${C.line}` }}>
+          <CategoryIcon category={e.category} direction={e.direction} />
+          <div style={{ flex: 1, minWidth: 0 }}>
             <p style={{ color: C.ink }}>{e.merchant}</p>
             <p style={{ color: C.slate, fontSize: '0.8rem' }}>{new Date(e.occurred_at).toLocaleDateString()}</p>
           </div>

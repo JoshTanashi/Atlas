@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
@@ -78,8 +79,8 @@ export function GoalDetailScreen({ goalId }) {
 
   return (
     <div>
-      <button onClick={() => navigate('/goals')} style={{ background: 'none', border: 'none', color: C.slate, marginBottom: '1rem' }}>
-        ← Goals
+      <button onClick={() => navigate('/goals')} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', background: 'none', border: 'none', color: C.slate, marginBottom: '1rem', padding: 0 }}>
+        <ChevronLeft size={18} strokeWidth={2} /> Goals
       </button>
       <h1 style={{ fontFamily: F.serif, fontSize: '1.5rem', marginBottom: '1rem' }}>{goal.name}</h1>
 

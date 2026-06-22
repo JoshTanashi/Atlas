@@ -1,4 +1,4 @@
-import { C } from '../../tokens.js';
+import { C, SHADOW } from '../../tokens.js';
 
 export function Card({ children, style }) {
   return (
@@ -6,8 +6,9 @@ export function Card({ children, style }) {
       style={{
         background: C.paper,
         border: `1px solid ${C.line}`,
-        borderRadius: '12px',
+        borderRadius: '14px',
         padding: '1.25rem',
+        boxShadow: SHADOW,
         ...style,
       }}
     >

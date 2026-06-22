@@ -1,13 +1,13 @@
+import { Home, Clock, Target, Sparkles, User } from 'lucide-react';
 import { C, F } from '../../tokens.js';
 import { navigate, useRoute } from '../../lib/nav.js';
 
 const TABS = [
-  { path: '/', label: 'Dashboard' },
-  { path: '/timeline', label: 'Timeline' },
-  { path: '/search', label: 'Search' },
-  { path: '/goals', label: 'Goals' },
-  { path: '/insights', label: 'Insights' },
-  { path: '/me', label: 'Me' },
+  { path: '/', label: 'Home', Icon: Home },
+  { path: '/timeline', label: 'Timeline', Icon: Clock },
+  { path: '/goals', label: 'Goals', Icon: Target },
+  { path: '/insights', label: 'Insights', Icon: Sparkles },
+  { path: '/me', label: 'Me', Icon: User },
 ];
 
 export function BottomNav() {
@@ -20,28 +20,55 @@ export function BottomNav() {
         justifyContent: 'space-around',
         background: C.paper,
         borderTop: `1px solid ${C.line}`,
-        padding: '0.6rem 0.25rem',
+        padding: '0.5rem 0.25rem',
         position: 'sticky',
         bottom: 0,
       }}
     >
-      {TABS.map((tab) => {
-        const active = pathname === tab.path;
+      {TABS.map(({ path, label, Icon }) => {
+        const active = pathname === path;
         return (
           <button
-            key={tab.path}
-            onClick={() => navigate(tab.path)}
+            key={path}
+            onClick={() => navigate(path)}
+            aria-label={label}
+            aria-current={active ? 'page' : undefined}
             style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '0.2rem',
               background: 'none',
               border: 'none',
-              fontFamily: F.sans,
-              fontSize: '0.75rem',
-              fontWeight: active ? 600 : 400,
-              color: active ? C.sageDeep : C.slate,
-              padding: '0.25rem 0.5rem',
+              padding: '0.4rem 0.9rem',
+              borderRadius: '14px',
+              minWidth: '3.6rem',
             }}
           >
-            {tab.label}
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2.25rem',
+                height: '2.25rem',
+                borderRadius: '50%',
+                background: active ? C.sage : 'transparent',
+                transition: 'background 0.15s ease',
+              }}
+            >
+              <Icon size={20} strokeWidth={2} color={active ? C.paper : C.slate} />
+            </span>
+            <span
+              style={{
+                fontFamily: F.sans,
+                fontSize: '0.7rem',
+                fontWeight: active ? 600 : 400,
+                color: active ? C.sageDeep : C.slate,
+              }}
+            >
+              {label}
+            </span>
           </button>
         );
       })}

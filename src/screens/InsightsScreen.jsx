@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { TrendingUp, Sparkles } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { Button } from '../components/ui/Button.jsx';
+import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
 import { formatRands } from '../lib/money.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 import { useProfile } from '../hooks/useProfile.jsx';
@@ -86,7 +88,7 @@ export function InsightsScreen() {
   if (!profile?.is_pro) {
     return (
       <div>
-        <h1 style={{ fontFamily: F.serif, fontSize: '1.5rem', marginBottom: '1.25rem' }}>Insights</h1>
+        <ScreenHeader title="Insights" />
         {confirmingCheckout && (
           <Card style={{ marginBottom: '1rem' }}>
             <p style={{ color: C.slate, fontSize: '0.9rem' }}>Confirming your subscription…</p>
@@ -117,10 +119,15 @@ export function InsightsScreen() {
 
   return (
     <div>
-      <h1 style={{ fontFamily: F.serif, fontSize: '1.5rem', marginBottom: '1.25rem' }}>Insights</h1>
+      <ScreenHeader title="Insights" />
 
       <Card style={{ marginBottom: '1rem' }}>
-        <span className="label">Next month's forecast</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '2rem', height: '2rem', borderRadius: '50%', background: C.cream }}>
+            <TrendingUp size={16} strokeWidth={2} color={C.sageDeep} />
+          </span>
+          <span className="label">Next month's forecast</span>
+        </div>
         {forecastCents !== null ? (
           <>
             <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>{formatRands(Math.max(0, forecastCents))}</p>
@@ -136,7 +143,12 @@ export function InsightsScreen() {
       </Card>
 
       <Card>
-        <span className="label">AI insight</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '2rem', height: '2rem', borderRadius: '50%', background: C.cream }}>
+            <Sparkles size={16} strokeWidth={2} color={C.sageDeep} />
+          </span>
+          <span className="label">AI insight</span>
+        </div>
         {insight ? (
           <>
             <p style={{ color: C.ink, fontSize: '0.95rem', marginTop: '0.5rem', whiteSpace: 'pre-wrap' }}>{insight.content}</p>
