@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { savingsRate, netWorth, runwayMonths, goalProjection, debtAmortization } from '../lib/formulas.js';
+import { savingsRate, netWorth, runwayMonths, goalProjection, debtAmortization, forecastNextMonthCents } from '../lib/formulas.js';
 
 describe('savingsRate', () => {
   it('R20,000 income, R15,000 expense -> 25.0%', () => {
@@ -96,5 +96,23 @@ describe('debtAmortization', () => {
   it('no monthly_payment_cents set flags as non-amortizing', () => {
     const result = debtAmortization({ balance_cents: 1_000_000, apr: 18, monthly_payment_cents: null });
     expect(result.amortizing).toBe(false);
+  });
+});
+
+describe('forecastNextMonthCents', () => {
+  it('R100/R120/R140 trend -> R160 projected next month', () => {
+    expect(forecastNextMonthCents([10_000, 12_000, 14_000])).toBe(16_000);
+  });
+
+  it('flat trend projects the same value forward', () => {
+    expect(forecastNextMonthCents([10_000, 10_000, 10_000])).toBe(10_000);
+  });
+
+  it('single month of data passes through unchanged (no trend to fit)', () => {
+    expect(forecastNextMonthCents([12_345])).toBe(12_345);
+  });
+
+  it('no data returns null, not NaN', () => {
+    expect(forecastNextMonthCents([])).toBeNull();
   });
 });

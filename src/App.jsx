@@ -2,12 +2,14 @@ import { C, F } from './tokens.js';
 import { useRoute } from './lib/nav.js';
 import { useAuth } from './hooks/useAuth.jsx';
 import { EventsProvider } from './hooks/useEvents.jsx';
+import { ProfileProvider } from './hooks/useProfile.jsx';
 import { AppShell } from './components/layout/AppShell.jsx';
 import { DashboardScreen } from './screens/DashboardScreen.jsx';
 import { TimelineScreen } from './screens/TimelineScreen.jsx';
 import { SearchScreen } from './screens/SearchScreen.jsx';
 import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { GoalDetailScreen } from './screens/GoalDetailScreen.jsx';
+import { InsightsScreen } from './screens/InsightsScreen.jsx';
 import { MeScreen } from './screens/MeScreen.jsx';
 import { NotFoundScreen } from './screens/NotFoundScreen.jsx';
 import { SignInScreen } from './screens/auth/SignInScreen.jsx';
@@ -34,6 +36,7 @@ function AppRouter({ pathname }) {
   if (pathname === '/timeline') return <TimelineScreen />;
   if (pathname === '/search') return <SearchScreen />;
   if (pathname === '/goals') return <GoalsScreen />;
+  if (pathname === '/insights') return <InsightsScreen />;
   if (pathname === '/me') return <MeScreen />;
   const goalMatch = pathname.match(/^\/goals\/([^/]+)$/);
   if (goalMatch) return <GoalDetailScreen goalId={goalMatch[1]} />;
@@ -64,24 +67,26 @@ export default function App() {
 
   return (
     <EventsProvider>
-      <AppShell>
-        {!session.user.email_confirmed_at && (
-          <div
-            style={{
-              background: C.warn,
-              color: C.paper,
-              fontSize: '0.8rem',
-              padding: '0.6rem 0.9rem',
-              borderRadius: '10px',
-              marginBottom: '1rem',
-              fontFamily: F.sans,
-            }}
-          >
-            Verify your email to keep your account secure — check your inbox for a link.
-          </div>
-        )}
-        <AppRouter pathname={pathname} />
-      </AppShell>
+      <ProfileProvider>
+        <AppShell>
+          {!session.user.email_confirmed_at && (
+            <div
+              style={{
+                background: C.warn,
+                color: C.paper,
+                fontSize: '0.8rem',
+                padding: '0.6rem 0.9rem',
+                borderRadius: '10px',
+                marginBottom: '1rem',
+                fontFamily: F.sans,
+              }}
+            >
+              Verify your email to keep your account secure — check your inbox for a link.
+            </div>
+          )}
+          <AppRouter pathname={pathname} />
+        </AppShell>
+      </ProfileProvider>
     </EventsProvider>
   );
 }

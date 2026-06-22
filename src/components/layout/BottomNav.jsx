@@ -6,6 +6,7 @@ const TABS = [
   { path: '/timeline', label: 'Timeline' },
   { path: '/search', label: 'Search' },
   { path: '/goals', label: 'Goals' },
+  { path: '/insights', label: 'Insights' },
   { path: '/me', label: 'Me' },
 ];
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { monthTotals, trailingMonthlyExpenseAverage } from '../lib/aggregates.js';
+import { monthTotals, trailingMonthlyExpenseAverage, trailingMonthlyExpenseTotals } from '../lib/aggregates.js';
 
 const ref = new Date(2026, 5, 22); // June 22, 2026
 
@@ -28,5 +28,12 @@ describe('trailingMonthlyExpenseAverage', () => {
     const result = trailingMonthlyExpenseAverage(events, ref, 3);
     expect(result.estimated).toBe(true);
     expect(result.average).toBe(15000);
+  });
+});
+
+describe('trailingMonthlyExpenseTotals', () => {
+  it('returns the 3 prior calendar months oldest-first, zero-filled', () => {
+    const events = [ev(30000, 'expense', 1), ev(90000, 'expense', 3)];
+    expect(trailingMonthlyExpenseTotals(events, ref, 3)).toEqual([90000, 0, 30000]);
   });
 });

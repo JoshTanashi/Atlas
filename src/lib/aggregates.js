@@ -42,3 +42,15 @@ export function trailingMonthlyExpenseAverage(events, referenceDate = new Date()
   const average = totals.reduce((sum, v) => sum + v, 0) / totals.length;
   return { average, estimated: false };
 }
+
+// Same trailing window as trailingMonthlyExpenseAverage, but returned oldest-first (and
+// including zero months) for feeding into a trend formula like forecastNextMonthCents.
+export function trailingMonthlyExpenseTotals(events, referenceDate = new Date(), monthsBack = 3) {
+  const totals = [];
+  for (let i = monthsBack; i >= 1; i--) {
+    const d = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - i, 1);
+    const { expenseCents } = monthTotals(events, d);
+    totals.push(expenseCents);
+  }
+  return totals;
+}

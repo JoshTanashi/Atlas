@@ -72,3 +72,26 @@ export function debtAmortization(debt) {
 
   return { amortizing: true, months, totalInterestCents };
 }
+
+// trailingMonthlyCents: totals (oldest first) for however many recent months are available.
+// Fits a simple linear trend through them and projects one month forward.
+// Returns null with no data (honest empty state); a single month just passes through (no trend to fit).
+export function forecastNextMonthCents(trailingMonthlyCents) {
+  const n = trailingMonthlyCents.length;
+  if (n === 0) return null;
+  if (n === 1) return trailingMonthlyCents[0];
+
+  const xMean = (n - 1) / 2;
+  const yMean = trailingMonthlyCents.reduce((sum, v) => sum + v, 0) / n;
+
+  let numerator = 0;
+  let denominator = 0;
+  trailingMonthlyCents.forEach((y, x) => {
+    numerator += (x - xMean) * (y - yMean);
+    denominator += (x - xMean) ** 2;
+  });
+
+  const slope = denominator === 0 ? 0 : numerator / denominator;
+  const intercept = yMean - slope * xMean;
+  return Math.round(intercept + slope * n);
+}
