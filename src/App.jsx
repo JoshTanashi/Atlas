@@ -11,6 +11,7 @@ import { GoalsScreen } from './screens/GoalsScreen.jsx';
 import { GoalDetailScreen } from './screens/GoalDetailScreen.jsx';
 import { InsightsScreen } from './screens/InsightsScreen.jsx';
 import { MeScreen } from './screens/MeScreen.jsx';
+import { SettingsScreen } from './screens/SettingsScreen.jsx';
 import { NotFoundScreen } from './screens/NotFoundScreen.jsx';
 import { SignInScreen } from './screens/auth/SignInScreen.jsx';
 import { SignUpScreen } from './screens/auth/SignUpScreen.jsx';
@@ -38,6 +39,7 @@ function AppRouter({ pathname }) {
   if (pathname === '/goals') return <GoalsScreen />;
   if (pathname === '/insights') return <InsightsScreen />;
   if (pathname === '/me') return <MeScreen />;
+  if (pathname === '/settings') return <SettingsScreen />;
   const goalMatch = pathname.match(/^\/goals\/([^/]+)$/);
   if (goalMatch) return <GoalDetailScreen goalId={goalMatch[1]} />;
   return <NotFoundScreen />;

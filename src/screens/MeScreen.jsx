@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, LogOut, Trash2, Crown, Banknote } from 'lucide-react';
+import { Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, Crown, Banknote } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -11,7 +11,6 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 import { useProfile } from '../hooks/useProfile.jsx';
-import { supabase } from '../lib/supabaseClient.js';
 
 const ACCOUNT_ICONS = { checking: Landmark, savings: PiggyBank, investment: TrendingUp, other: Wallet };
 
@@ -28,7 +27,7 @@ function IconBadge({ icon: Icon, color = C.sageDeep, background = C.cream }) {
 }
 
 export function MeScreen() {
-  const { session, signOut } = useAuth();
+  const { session } = useAuth();
   const { profile } = useProfile();
   const { income, accounts, debts, setMonthlyIncome, upsertAccount, deleteAccount, upsertDebt, deleteDebt } = useBaseline();
   const { events } = useEvents();
@@ -37,8 +36,6 @@ export function MeScreen() {
   const [incomeError, setIncomeError] = useState(null);
   const [accountsError, setAccountsError] = useState(null);
   const [debtsError, setDebtsError] = useState(null);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState(null);
 
   function describeBaselineError(e) {
     return e.message === 'OFFLINE' ? "You're offline — connect to save changes." : 'Could not save. Please try again.';
@@ -102,23 +99,9 @@ export function MeScreen() {
     URL.revokeObjectURL(url);
   }
 
-  async function handleDeleteAccount() {
-    if (!window.confirm('This permanently deletes your account and all data. This cannot be undone. Continue?')) return;
-    setDeleting(true);
-    setDeleteError(null);
-    try {
-      const { error } = await supabase.functions.invoke('delete-account');
-      if (error) throw error;
-      await signOut();
-    } catch {
-      setDeleteError('Could not delete your account. Please try again, or contact support.');
-      setDeleting(false);
-    }
-  }
-
   return (
     <div>
-      <ScreenHeader title="Me" />
+      <ScreenHeader title="Me" showSettings />
 
       <Card style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
         <span
@@ -184,20 +167,8 @@ export function MeScreen() {
       <SectionLabel>Your data</SectionLabel>
 
       <Card style={{ marginBottom: '1rem' }}>
-        <Button variant="secondary" onClick={handleExport} style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
+        <Button variant="secondary" onClick={handleExport} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
           <Download size={16} strokeWidth={2} /> Download my data
-        </Button>
-        <Button variant="ghost" onClick={signOut} style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-          <LogOut size={16} strokeWidth={2} /> Sign out
-        </Button>
-        {deleteError && <p style={{ color: C.over, fontSize: '0.85rem', marginBottom: '0.5rem' }}>{deleteError}</p>}
-        <Button
-          variant="ghost"
-          onClick={handleDeleteAccount}
-          disabled={deleting}
-          style={{ width: '100%', color: C.over, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-        >
-          <Trash2 size={16} strokeWidth={2} /> {deleting ? 'Deleting…' : 'Delete my account and all data'}
         </Button>
       </Card>
     </div>

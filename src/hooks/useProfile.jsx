@@ -13,7 +13,7 @@ export function ProfileProvider({ children }) {
     if (!session) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('is_pro, pro_plan, pro_current_period_end')
+      .select('display_name, is_pro, pro_plan, pro_current_period_end')
       .eq('id', session.user.id)
       .maybeSingle();
     if (!error && data) setProfile(data);
@@ -22,8 +22,18 @@ export function ProfileProvider({ children }) {
 
   useEffect(() => { refresh(); }, [refresh]);
 
+  async function updateDisplayName(displayName) {
+    if (!navigator.onLine) throw new Error('OFFLINE');
+    const { error } = await supabase
+      .from('profiles')
+      .update({ display_name: displayName })
+      .eq('id', session.user.id);
+    if (error) throw error;
+    setProfile((p) => ({ ...p, display_name: displayName }));
+  }
+
   return (
-    <ProfileContext.Provider value={{ profile, loading, refresh }}>
+    <ProfileContext.Provider value={{ profile, loading, refresh, updateDisplayName }}>
       {children}
     </ProfileContext.Provider>
   );
