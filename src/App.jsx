@@ -2,8 +2,9 @@ import { C, F } from './tokens.js';
 import { useRoute } from './lib/nav.js';
 import { useAuth } from './hooks/useAuth.jsx';
 import { EventsProvider } from './hooks/useEvents.jsx';
-import { ProfileProvider } from './hooks/useProfile.jsx';
+import { ProfileProvider, useProfile } from './hooks/useProfile.jsx';
 import { AppShell } from './components/layout/AppShell.jsx';
+import { OnboardingFlow } from './screens/onboarding/OnboardingFlow.jsx';
 import { DashboardScreen } from './screens/DashboardScreen.jsx';
 import { TimelineScreen } from './screens/TimelineScreen.jsx';
 import { SearchScreen } from './screens/SearchScreen.jsx';
@@ -68,25 +69,45 @@ export default function App() {
   return (
     <EventsProvider>
       <ProfileProvider>
-        <AppShell>
-          {!session.user.email_confirmed_at && (
-            <div
-              style={{
-                background: C.warn,
-                color: C.paper,
-                fontSize: '0.8rem',
-                padding: '0.6rem 0.9rem',
-                borderRadius: '10px',
-                marginBottom: '1rem',
-                fontFamily: F.sans,
-              }}
-            >
-              Verify your email to keep your account secure — check your inbox for a link.
-            </div>
-          )}
-          <AppRouter pathname={pathname} />
-        </AppShell>
+        <AuthedApp session={session} pathname={pathname} />
       </ProfileProvider>
     </EventsProvider>
+  );
+}
+
+function AuthedApp({ session, pathname }) {
+  const { profile, loading } = useProfile();
+
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.cream }}>
+        <p style={{ color: C.slate, fontFamily: F.sans }}>Loading…</p>
+      </div>
+    );
+  }
+
+  if (profile && !profile.onboarding_completed_at) {
+    return <OnboardingFlow />;
+  }
+
+  return (
+    <AppShell>
+      {!session.user.email_confirmed_at && (
+        <div
+          style={{
+            background: C.warn,
+            color: C.paper,
+            fontSize: '0.8rem',
+            padding: '0.6rem 0.9rem',
+            borderRadius: '10px',
+            marginBottom: '1rem',
+            fontFamily: F.sans,
+          }}
+        >
+          Verify your email to keep your account secure — check your inbox for a link.
+        </div>
+      )}
+      <AppRouter pathname={pathname} />
+    </AppShell>
   );
 }

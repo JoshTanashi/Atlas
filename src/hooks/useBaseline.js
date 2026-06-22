@@ -48,11 +48,11 @@ export function useBaseline() {
     refresh();
   }, [refresh]);
 
-  async function setMonthlyIncome(monthlyIncomeCents) {
+  async function setMonthlyIncome(monthlyIncomeCents, extra = {}) {
     if (!navigator.onLine) throw new Error('OFFLINE');
     const { error } = await supabase
       .from('baseline_income')
-      .upsert({ user_id: session.user.id, monthly_income_cents: monthlyIncomeCents, updated_at: new Date().toISOString() });
+      .upsert({ user_id: session.user.id, monthly_income_cents: monthlyIncomeCents, ...extra, updated_at: new Date().toISOString() });
     if (error) throw error;
     await refresh();
   }
