@@ -1,5 +1,5 @@
 import { C, F } from '../../tokens.js';
-import { Search, Settings } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { navigate } from '../../lib/nav.js';
 
 function IconButton({ icon: Icon, label, onClick }) {
@@ -24,14 +24,13 @@ function IconButton({ icon: Icon, label, onClick }) {
   );
 }
 
-export function ScreenHeader({ title, action, showSearch, showSettings }) {
+export function ScreenHeader({ title, action, showSearch }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
       <h1 style={{ fontFamily: F.serif, fontSize: '1.5rem', color: C.ink }}>{title}</h1>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         {action}
         {showSearch && <IconButton icon={Search} label="Search" onClick={() => navigate('/search')} />}
-        {showSettings && <IconButton icon={Settings} label="Settings" onClick={() => navigate('/settings')} />}
       </div>
     </div>
   );

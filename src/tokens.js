@@ -1,16 +1,18 @@
+// Values are CSS custom properties (see index.css :root / [data-theme='soft'])
+// so the active theme can be swapped at runtime without touching call sites.
 export const C = {
-  cream: '#F5F1E8', // primary background
-  paper: '#FBF8F1', // cards, elevated surfaces
-  ink: '#2B2A26', // primary text
-  slate: '#6B6960', // secondary text, labels
-  line: '#E3DDD0', // borders, dividers
-  sage: '#5B7B6F', // primary accent (muted green)
-  sageDeep: '#3E5950', // active / emphasis
-  clay: '#B0734A', // warm secondary accent (sparingly)
+  cream: 'var(--cream)', // primary background
+  paper: 'var(--paper)', // cards, elevated surfaces
+  ink: 'var(--ink)', // primary text
+  slate: 'var(--slate)', // secondary text, labels
+  line: 'var(--line)', // borders, dividers
+  sage: 'var(--sage)', // primary accent (muted green)
+  sageDeep: 'var(--sage-deep)', // active / emphasis
+  clay: 'var(--clay)', // warm secondary accent (sparingly)
   // semantic
-  good: '#5B7B6F',
-  warn: '#C58A3D',
-  over: '#A8534A', // overspend — muted, never harsh
+  good: 'var(--good)',
+  warn: 'var(--warn)',
+  over: 'var(--over)', // overspend — muted, never harsh
 };
 
 export const F = {

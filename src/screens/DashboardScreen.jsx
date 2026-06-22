@@ -98,7 +98,7 @@ export function DashboardScreen() {
         <EmptyState
           title="Add your income and balances"
           body="Unlock your savings rate, net worth, and runway."
-          action={<Button variant="secondary" onClick={() => navigate('/me')}>Set up Me →</Button>}
+          action={<Button variant="secondary" onClick={() => navigate('/settings')}>Set up in Settings →</Button>}
         />
       )}
 

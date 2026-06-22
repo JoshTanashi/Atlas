@@ -1,4 +1,4 @@
-import { Home, Clock, Target, Sparkles, User } from 'lucide-react';
+import { Home, Clock, Target, Sparkles, Settings } from 'lucide-react';
 import { C, F } from '../../tokens.js';
 import { navigate, useRoute } from '../../lib/nav.js';
 
@@ -7,7 +7,7 @@ const TABS = [
   { path: '/timeline', label: 'Timeline', Icon: Clock },
   { path: '/goals', label: 'Goals', Icon: Target },
   { path: '/insights', label: 'Insights', Icon: Sparkles },
-  { path: '/me', label: 'Me', Icon: User },
+  { path: '/settings', label: 'Settings', Icon: Settings },
 ];
 
 export function BottomNav() {

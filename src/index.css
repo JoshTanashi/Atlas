@@ -6,6 +6,31 @@
 
 :root {
   color-scheme: light;
+  --cream: #F5F1E8;
+  --paper: #FBF8F1;
+  --ink: #2B2A26;
+  --slate: #6B6960;
+  --line: #E3DDD0;
+  --sage: #5B7B6F;
+  --sage-deep: #3E5950;
+  --clay: #B0734A;
+  --good: #5B7B6F;
+  --warn: #C58A3D;
+  --over: #A8534A;
+}
+
+[data-theme='soft'] {
+  --cream: #F1F3EE;
+  --paper: #FFFFFF;
+  --ink: #33352F;
+  --slate: #767A6E;
+  --line: #DDE3D8;
+  --sage: #6E8C7E;
+  --sage-deep: #4A6A5C;
+  --clay: #C0825A;
+  --good: #6E8C7E;
+  --warn: #D29A4E;
+  --over: #B6655B;
 }
 
 * {
@@ -19,13 +44,14 @@ body {
 }
 
 body {
-  background: #F5F1E8;
-  color: #2B2A26;
+  background: var(--cream);
+  color: var(--ink);
   font-family: 'DM Sans', sans-serif;
   font-weight: 400;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 #root {
@@ -58,5 +84,5 @@ p {
   font-weight: 500;
   letter-spacing: 0.06em;
   font-variant: small-caps;
-  color: #6B6960;
+  color: var(--slate);
 }

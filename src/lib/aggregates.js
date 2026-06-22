@@ -54,3 +54,21 @@ export function trailingMonthlyExpenseTotals(events, referenceDate = new Date(),
   }
   return totals;
 }
+
+// Current-month expense totals grouped by category, sorted highest first.
+export function categoryBreakdown(events, referenceDate = new Date()) {
+  const year = referenceDate.getFullYear();
+  const month = referenceDate.getMonth();
+  const totals = new Map();
+
+  for (const event of events) {
+    if (event.direction !== 'expense') continue;
+    const occurred = new Date(event.occurred_at);
+    if (!isSameMonth(occurred, year, month)) continue;
+    totals.set(event.category, (totals.get(event.category) ?? 0) + event.amount_cents);
+  }
+
+  return [...totals.entries()]
+    .map(([category, cents]) => ({ category, cents }))
+    .sort((a, b) => b.cents - a.cents);
+}
