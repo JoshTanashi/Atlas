@@ -13,7 +13,7 @@ export function ProfileProvider({ children }) {
     if (!session) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, is_pro, pro_plan, pro_current_period_end')
+      .select('display_name, is_pro, pro_plan, pro_current_period_end, onboarding_completed_at')
       .eq('id', session.user.id)
       .maybeSingle();
     if (!error && data) setProfile(data);
@@ -32,8 +32,18 @@ export function ProfileProvider({ children }) {
     setProfile((p) => ({ ...p, display_name: displayName }));
   }
 
+  async function completeOnboarding() {
+    const completedAt = new Date().toISOString();
+    const { error } = await supabase
+      .from('profiles')
+      .update({ onboarding_completed_at: completedAt })
+      .eq('id', session.user.id);
+    if (error) throw error;
+    setProfile((p) => ({ ...p, onboarding_completed_at: completedAt }));
+  }
+
   return (
-    <ProfileContext.Provider value={{ profile, loading, refresh, updateDisplayName }}>
+    <ProfileContext.Provider value={{ profile, loading, refresh, updateDisplayName, completeOnboarding }}>
       {children}
     </ProfileContext.Provider>
   );

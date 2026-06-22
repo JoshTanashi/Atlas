@@ -1,9 +1,9 @@
 import { openDB } from 'idb';
 
 const DB_NAME = 'atlas-cache';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-const STORES = ['events', 'income', 'accounts', 'debts', 'goals', 'corrections'];
+const STORES = ['events', 'income', 'accounts', 'debts', 'goals', 'corrections', 'recurringExpenses'];
 
 let dbPromise;
 
