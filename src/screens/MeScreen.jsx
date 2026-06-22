@@ -16,8 +16,62 @@ export function MeScreen() {
   const { events } = useEvents();
 
   const [incomeInput, setIncomeInput] = useState('');
+  const [incomeError, setIncomeError] = useState(null);
+  const [accountsError, setAccountsError] = useState(null);
+  const [debtsError, setDebtsError] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+
+  function describeBaselineError(e) {
+    return e.message === 'OFFLINE' ? "You're offline — connect to save changes." : 'Could not save. Please try again.';
+  }
+
+  async function handleSaveIncome() {
+    if (!incomeInput) return;
+    setIncomeError(null);
+    try {
+      await setMonthlyIncome(randsToCents(Number(incomeInput)));
+      setIncomeInput('');
+    } catch (e) {
+      setIncomeError(describeBaselineError(e));
+    }
+  }
+
+  async function handleUpsertAccount(name, kind, balanceRands) {
+    setAccountsError(null);
+    try {
+      await upsertAccount({ name, kind, balance_cents: randsToCents(Number(balanceRands)) });
+    } catch (e) {
+      setAccountsError(describeBaselineError(e));
+    }
+  }
+
+  async function handleRemoveAccount(id) {
+    setAccountsError(null);
+    try {
+      await deleteAccount(id);
+    } catch (e) {
+      setAccountsError(describeBaselineError(e));
+    }
+  }
+
+  async function handleUpsertDebt(debt) {
+    setDebtsError(null);
+    try {
+      await upsertDebt(debt);
+    } catch (e) {
+      setDebtsError(describeBaselineError(e));
+    }
+  }
+
+  async function handleRemoveDebt(id) {
+    setDebtsError(null);
+    try {
+      await deleteDebt(id);
+    } catch (e) {
+      setDebtsError(describeBaselineError(e));
+    }
+  }
 
   async function handleExport() {
     const payload = { exportedAt: new Date().toISOString(), events, income, accounts, debts };
@@ -65,13 +119,11 @@ export function MeScreen() {
             onChange={(e) => setIncomeInput(e.target.value)}
             placeholder={income ? centsToRands(income.monthly_income_cents).toString() : 'R per month'}
           />
-          <Button
-            style={{ height: 'fit-content' }}
-            onClick={() => incomeInput && setMonthlyIncome(randsToCents(Number(incomeInput))).then(() => setIncomeInput(''))}
-          >
+          <Button style={{ height: 'fit-content' }} onClick={handleSaveIncome}>
             Save
           </Button>
         </div>
+        {incomeError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{incomeError}</p>}
       </Card>
 
       <BaselineListCard
@@ -79,12 +131,13 @@ export function MeScreen() {
         emptyHint="Unlocks net worth and emergency-fund runway."
         items={accounts}
         renderItem={(a) => `${a.name} (${a.kind}) — ${formatRands(a.balance_cents)}`}
-        onAdd={(name, kind, balanceRands) => upsertAccount({ name, kind, balance_cents: randsToCents(Number(balanceRands)) })}
-        onDelete={deleteAccount}
+        onAdd={handleUpsertAccount}
+        onDelete={handleRemoveAccount}
+        error={accountsError}
         kindOptions={['checking', 'savings', 'investment', 'other']}
       />
 
-      <DebtsCard debts={debts} upsertDebt={upsertDebt} deleteDebt={deleteDebt} />
+      <DebtsCard debts={debts} onAdd={handleUpsertDebt} onDelete={handleRemoveDebt} error={debtsError} />
 
       <Card style={{ marginBottom: '1rem' }}>
         <span className="label">Your data</span>
@@ -111,7 +164,7 @@ export function MeScreen() {
   );
 }
 
-function BaselineListCard({ title, emptyHint, items, renderItem, onAdd, onDelete, kindOptions }) {
+function BaselineListCard({ title, emptyHint, items, renderItem, onAdd, onDelete, error, kindOptions }) {
   const [name, setName] = useState('');
   const [kind, setKind] = useState(kindOptions[0]);
   const [balance, setBalance] = useState('');
@@ -138,11 +191,12 @@ function BaselineListCard({ title, emptyHint, items, renderItem, onAdd, onDelete
           Add
         </Button>
       </div>
+      {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
     </Card>
   );
 }
 
-function DebtsCard({ debts, upsertDebt, deleteDebt }) {
+function DebtsCard({ debts, onAdd, onDelete, error }) {
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
   const [apr, setApr] = useState('');
@@ -162,7 +216,7 @@ function DebtsCard({ debts, upsertDebt, deleteDebt }) {
           <div key={d.id} style={{ padding: '0.5rem 0', borderTop: `1px solid ${C.line}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: C.ink, fontSize: '0.9rem' }}>{d.name} — {formatRands(d.balance_cents)} @ {d.apr}%</span>
-              <button onClick={() => deleteDebt(d.id)} style={{ background: 'none', border: 'none', color: C.slate }}>✕</button>
+              <button onClick={() => onDelete(d.id)} style={{ background: 'none', border: 'none', color: C.slate }}>✕</button>
             </div>
             {result && (
               <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.25rem' }}>
@@ -182,7 +236,7 @@ function DebtsCard({ debts, upsertDebt, deleteDebt }) {
         <Button
           onClick={() => {
             if (!name || !balance || !apr) return;
-            upsertDebt({
+            onAdd({
               name,
               balance_cents: randsToCents(Number(balance)),
               apr: Number(apr),
@@ -194,6 +248,7 @@ function DebtsCard({ debts, upsertDebt, deleteDebt }) {
           Add
         </Button>
       </div>
+      {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
     </Card>
   );
 }

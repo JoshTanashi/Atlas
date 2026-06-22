@@ -15,6 +15,7 @@ export function GoalDetailScreen({ goalId }) {
   const [targetDate, setTargetDate] = useState('');
   const [savedRands, setSavedRands] = useState('');
   const [deleteError, setDeleteError] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
   if (loading) return <p style={{ color: C.slate }}>Loading…</p>;
 
@@ -28,22 +29,41 @@ export function GoalDetailScreen({ goalId }) {
     monthly_contribution_cents: goal.monthly_contribution_cents,
   });
 
+  function describeActionError(e) {
+    return e.message === 'OFFLINE' ? "You're offline — connect to update this goal." : 'Could not update goal. Please try again.';
+  }
+
   async function handleSetContribution() {
     if (!contributionRands) return;
-    await updateGoal(goal.id, { monthly_contribution_cents: randsToCents(Number(contributionRands)), target_date: null });
-    setContributionRands('');
+    setActionError(null);
+    try {
+      await updateGoal(goal.id, { monthly_contribution_cents: randsToCents(Number(contributionRands)), target_date: null });
+      setContributionRands('');
+    } catch (e) {
+      setActionError(describeActionError(e));
+    }
   }
 
   async function handleSetTargetDate() {
     if (!targetDate) return;
-    await updateGoal(goal.id, { target_date: targetDate, monthly_contribution_cents: null });
-    setTargetDate('');
+    setActionError(null);
+    try {
+      await updateGoal(goal.id, { target_date: targetDate, monthly_contribution_cents: null });
+      setTargetDate('');
+    } catch (e) {
+      setActionError(describeActionError(e));
+    }
   }
 
   async function handleAddSaved() {
     if (!savedRands) return;
-    await updateGoal(goal.id, { saved_cents: goal.saved_cents + randsToCents(Number(savedRands)) });
-    setSavedRands('');
+    setActionError(null);
+    try {
+      await updateGoal(goal.id, { saved_cents: goal.saved_cents + randsToCents(Number(savedRands)) });
+      setSavedRands('');
+    } catch (e) {
+      setActionError(describeActionError(e));
+    }
   }
 
   async function handleDelete() {
@@ -85,6 +105,8 @@ export function GoalDetailScreen({ goalId }) {
           </p>
         )}
       </Card>
+
+      {actionError && <p style={{ color: C.over, fontSize: '0.85rem', marginBottom: '1rem' }}>{actionError}</p>}
 
       <Card style={{ marginBottom: '1rem' }}>
         <span className="label">Log a contribution</span>
