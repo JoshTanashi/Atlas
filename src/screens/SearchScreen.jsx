@@ -3,7 +3,7 @@ import { C, F } from '../tokens.js';
 import { Input } from '../components/ui/Input.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { formatRands } from '../lib/money.js';
-import { useEvents } from '../hooks/useEvents.js';
+import { useEvents } from '../hooks/useEvents.jsx';
 
 export function SearchScreen() {
   const { events } = useEvents();

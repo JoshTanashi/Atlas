@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
 import { getAll, replaceAll, put } from '../lib/db.js';
 import { useAuth } from './useAuth.jsx';
 
-export function useEvents() {
+const EventsContext = createContext(null);
+
+export function EventsProvider({ children }) {
   const { session } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -66,7 +68,18 @@ export function useEvents() {
     return row;
   }
 
-  return { events, loading, logEvent, refresh };
+  return (
+    <EventsContext.Provider value={{ events, loading, logEvent, refresh }}>
+      {children}
+    </EventsContext.Provider>
+  );
+}
+
+// eslint-disable-next-line react-refresh/only-export-components -- context + hook are intentionally co-located
+export function useEvents() {
+  const ctx = useContext(EventsContext);
+  if (!ctx) throw new Error('useEvents must be used within an EventsProvider');
+  return ctx;
 }
 
 function sortByOccurredAtDesc(rows) {

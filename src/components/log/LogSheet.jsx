@@ -5,7 +5,7 @@ import { AmountInput } from '../ui/AmountInput.jsx';
 import { MerchantStep } from './MerchantStep.jsx';
 import { DetailExpander } from './DetailExpander.jsx';
 import { matchMerchant, normalizeMerchant } from '../../lib/merchantMatch.js';
-import { useEvents } from '../../hooks/useEvents.js';
+import { useEvents } from '../../hooks/useEvents.jsx';
 import { useMerchantCorrections } from '../../hooks/useMerchantCorrections.js';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus.js';
 

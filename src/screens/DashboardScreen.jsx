@@ -4,7 +4,7 @@ import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { formatRands } from '../lib/money.js';
 import { navigate } from '../lib/nav.js';
-import { useEvents } from '../hooks/useEvents.js';
+import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { monthTotals, trailingMonthlyExpenseAverage } from '../lib/aggregates.js';
 import { savingsRate, netWorth, runwayMonths } from '../lib/formulas.js';

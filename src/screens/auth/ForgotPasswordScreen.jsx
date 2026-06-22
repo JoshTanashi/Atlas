@@ -4,6 +4,7 @@ import { Input } from '../../components/ui/Input.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { navigate } from '../../lib/nav.js';
 import { supabase } from '../../lib/supabaseClient.js';
+import { friendlyAuthError } from '../../lib/authError.js';
 import { AuthLayout } from './AuthLayout.jsx';
 
 export function ForgotPasswordScreen() {
@@ -20,7 +21,7 @@ export function ForgotPasswordScreen() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setLoading(false);
-    if (error) setError(error.message);
+    if (error) setError(friendlyAuthError(error.message));
     else setSent(true);
   }
 

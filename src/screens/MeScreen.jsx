@@ -7,7 +7,7 @@ import { formatRands, randsToCents, centsToRands } from '../lib/money.js';
 import { debtAmortization } from '../lib/formulas.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
-import { useEvents } from '../hooks/useEvents.js';
+import { useEvents } from '../hooks/useEvents.jsx';
 import { supabase } from '../lib/supabaseClient.js';
 
 export function MeScreen() {

@@ -1,6 +1,7 @@
 import { C, F } from './tokens.js';
 import { useRoute } from './lib/nav.js';
 import { useAuth } from './hooks/useAuth.jsx';
+import { EventsProvider } from './hooks/useEvents.jsx';
 import { AppShell } from './components/layout/AppShell.jsx';
 import { DashboardScreen } from './screens/DashboardScreen.jsx';
 import { TimelineScreen } from './screens/TimelineScreen.jsx';
@@ -62,23 +63,25 @@ export default function App() {
   }
 
   return (
-    <AppShell>
-      {!session.user.email_confirmed_at && (
-        <div
-          style={{
-            background: C.warn,
-            color: C.paper,
-            fontSize: '0.8rem',
-            padding: '0.6rem 0.9rem',
-            borderRadius: '10px',
-            marginBottom: '1rem',
-            fontFamily: F.sans,
-          }}
-        >
-          Verify your email to keep your account secure — check your inbox for a link.
-        </div>
-      )}
-      <AppRouter pathname={pathname} />
-    </AppShell>
+    <EventsProvider>
+      <AppShell>
+        {!session.user.email_confirmed_at && (
+          <div
+            style={{
+              background: C.warn,
+              color: C.paper,
+              fontSize: '0.8rem',
+              padding: '0.6rem 0.9rem',
+              borderRadius: '10px',
+              marginBottom: '1rem',
+              fontFamily: F.sans,
+            }}
+          >
+            Verify your email to keep your account secure — check your inbox for a link.
+          </div>
+        )}
+        <AppRouter pathname={pathname} />
+      </AppShell>
+    </EventsProvider>
   );
 }

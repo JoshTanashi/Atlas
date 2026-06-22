@@ -3,6 +3,7 @@ import { C } from '../../tokens.js';
 import { Button } from '../../components/ui/Button.jsx';
 import { navigate } from '../../lib/nav.js';
 import { supabase } from '../../lib/supabaseClient.js';
+import { friendlyAuthError } from '../../lib/authError.js';
 import { AuthLayout } from './AuthLayout.jsx';
 
 export function VerifyEmailScreen() {
@@ -13,7 +14,7 @@ export function VerifyEmailScreen() {
   async function handleResend() {
     setError(null);
     const { error } = await supabase.auth.resend({ type: 'signup', email });
-    if (error) setError(error.message);
+    if (error) setError(friendlyAuthError(error.message));
     else setResent(true);
   }
 

@@ -4,6 +4,7 @@ import { Input } from '../../components/ui/Input.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { navigate } from '../../lib/nav.js';
 import { supabase } from '../../lib/supabaseClient.js';
+import { friendlyAuthError } from '../../lib/authError.js';
 import { AuthLayout } from './AuthLayout.jsx';
 
 export function SignUpScreen() {
@@ -21,7 +22,7 @@ export function SignUpScreen() {
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({ email, password });
     setLoading(false);
-    if (error) { setError(error.message); return; }
+    if (error) { setError(friendlyAuthError(error.message)); return; }
     if (!data.session) navigate(`/verify-email?email=${encodeURIComponent(email)}`);
   }
 

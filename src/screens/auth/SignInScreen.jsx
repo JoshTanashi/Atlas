@@ -4,6 +4,7 @@ import { Input } from '../../components/ui/Input.jsx';
 import { Button } from '../../components/ui/Button.jsx';
 import { navigate } from '../../lib/nav.js';
 import { supabase } from '../../lib/supabaseClient.js';
+import { friendlyAuthError } from '../../lib/authError.js';
 import { AuthLayout } from './AuthLayout.jsx';
 
 export function SignInScreen() {
@@ -18,7 +19,7 @@ export function SignInScreen() {
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (error) setError(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
+    if (error) setError(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : friendlyAuthError(error.message));
   }
 
   return (

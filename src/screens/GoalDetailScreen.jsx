@@ -14,6 +14,7 @@ export function GoalDetailScreen({ goalId }) {
   const [contributionRands, setContributionRands] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [savedRands, setSavedRands] = useState('');
+  const [deleteError, setDeleteError] = useState(null);
 
   if (loading) return <p style={{ color: C.slate }}>Loading…</p>;
 
@@ -43,6 +44,16 @@ export function GoalDetailScreen({ goalId }) {
     if (!savedRands) return;
     await updateGoal(goal.id, { saved_cents: goal.saved_cents + randsToCents(Number(savedRands)) });
     setSavedRands('');
+  }
+
+  async function handleDelete() {
+    setDeleteError(null);
+    try {
+      await deleteGoal(goal.id);
+      navigate('/goals');
+    } catch (e) {
+      setDeleteError(e.message === 'OFFLINE' ? "You're offline — connect to delete this goal." : 'Could not delete goal. Please try again.');
+    }
   }
 
   return (
@@ -99,7 +110,8 @@ export function GoalDetailScreen({ goalId }) {
         </div>
       </Card>
 
-      <Button variant="ghost" onClick={() => { deleteGoal(goal.id); navigate('/goals'); }}>Delete goal</Button>
+      {deleteError && <p style={{ color: C.over, fontSize: '0.85rem', marginBottom: '0.5rem' }}>{deleteError}</p>}
+      <Button variant="ghost" onClick={handleDelete}>Delete goal</Button>
     </div>
   );
 }

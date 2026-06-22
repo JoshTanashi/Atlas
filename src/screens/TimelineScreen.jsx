@@ -1,7 +1,7 @@
 import { C, F } from '../tokens.js';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { formatRands } from '../lib/money.js';
-import { useEvents } from '../hooks/useEvents.js';
+import { useEvents } from '../hooks/useEvents.jsx';
 
 function groupLabel(date) {
   const now = new Date();
