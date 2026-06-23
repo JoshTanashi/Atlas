@@ -15,6 +15,7 @@ import { GoalDetailScreen } from './screens/GoalDetailScreen.jsx';
 import { InsightsScreen } from './screens/InsightsScreen.jsx';
 import { SettingsScreen } from './screens/SettingsScreen.jsx';
 import { NotFoundScreen } from './screens/NotFoundScreen.jsx';
+import { WelcomeScreen } from './screens/auth/WelcomeScreen.jsx';
 import { SignInScreen } from './screens/auth/SignInScreen.jsx';
 import { SignUpScreen } from './screens/auth/SignUpScreen.jsx';
 import { ForgotPasswordScreen } from './screens/auth/ForgotPasswordScreen.jsx';
@@ -141,7 +142,7 @@ export default function App() {
   }
 
   if (!session && !guestMode) {
-    return <AuthRouter pathname={pathname} />;
+    return <WelcomeScreen />;
   }
 
   if (session && guestMode) {

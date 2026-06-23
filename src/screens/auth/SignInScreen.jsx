@@ -5,11 +5,9 @@ import { Button } from '../../components/ui/Button.jsx';
 import { navigate } from '../../lib/nav.js';
 import { supabase } from '../../lib/supabaseClient.js';
 import { friendlyAuthError } from '../../lib/authError.js';
-import { useAuth } from '../../hooks/useAuth.jsx';
 import { AuthLayout } from './AuthLayout.jsx';
 
 export function SignInScreen() {
-  const { enterGuestMode } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -37,14 +35,6 @@ export function SignInScreen() {
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
         <button onClick={() => navigate('/forgot-password')} style={{ background: 'none', border: 'none', color: C.slate, padding: 0, cursor: 'pointer' }}>Forgot password?</button>
         <button onClick={() => navigate('/sign-up')} style={{ background: 'none', border: 'none', color: C.sageDeep, padding: 0, cursor: 'pointer' }}>Create account</button>
-      </div>
-      <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
-        <button
-          onClick={enterGuestMode}
-          style={{ background: 'none', border: 'none', color: C.slate, fontSize: '0.85rem', padding: 0, cursor: 'pointer', textDecoration: 'underline' }}
-        >
-          Continue without an account →
-        </button>
       </div>
     </AuthLayout>
   );
