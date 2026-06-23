@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Check } from 'lucide-react';
 import { C, F } from '../../tokens.js';
 import { Button } from '../ui/Button.jsx';
 import { AmountInput } from '../ui/AmountInput.jsx';
@@ -10,6 +12,7 @@ import { useMerchantCorrections } from '../../hooks/useMerchantCorrections.js';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus.js';
 
 const STEPS = { AMOUNT: 'amount', MERCHANT: 'merchant' };
+const SAVED_FEEDBACK_MS = 550;
 
 export function LogSheet({ onClose }) {
   const [step, setStep] = useState(STEPS.AMOUNT);
@@ -19,6 +22,7 @@ export function LogSheet({ onClose }) {
   const [note, setNote] = useState('');
   const [categoryOverride, setCategoryOverride] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
 
   const { logEvent } = useEvents();
@@ -55,7 +59,8 @@ export function LogSheet({ onClose }) {
         category: finalCategory,
         note: note.trim() || null,
       });
-      onClose();
+      setSaved(true);
+      setTimeout(onClose, SAVED_FEEDBACK_MS);
     } catch (e) {
       setError(e.message === 'OFFLINE' ? "You're offline — connect to save this entry." : 'Could not save. Please try again.');
     } finally {
@@ -86,8 +91,34 @@ export function LogSheet({ onClose }) {
           padding: '1.5rem 1.25rem 2rem',
           maxHeight: '88vh',
           overflowY: 'auto',
+          position: 'relative',
         }}
       >
+        <AnimatePresence>
+          {saved && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              style={{
+                position: 'absolute', inset: 0, background: C.cream, borderRadius: '20px 20px 0 0',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1,
+              }}
+            >
+              <motion.span
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 16 }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  width: '3.5rem', height: '3.5rem', borderRadius: '50%', background: C.sage,
+                }}
+              >
+                <Check size={28} strokeWidth={3} color={C.paper} />
+              </motion.span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <h2 style={{ fontFamily: F.serif, fontSize: '1.2rem', color: C.ink }}>Log an entry</h2>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.slate, fontSize: '1.2rem' }}>✕</button>

@@ -5,6 +5,8 @@ import { Card } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input } from '../components/ui/Input.jsx';
+import { GoalProgressRing } from '../components/ui/GoalProgressRing.jsx';
+import { GoalCelebration } from '../components/ui/GoalCelebration.jsx';
 import { formatRands, randsToCents } from '../lib/money.js';
 import { goalProjection, recentContributionPace } from '../lib/formulas.js';
 import { navigate } from '../lib/nav.js';
@@ -18,6 +20,7 @@ export function GoalDetailScreen({ goalId }) {
   const [aprInput, setAprInput] = useState('');
   const [deleteError, setDeleteError] = useState(null);
   const [actionError, setActionError] = useState(null);
+  const [celebrating, setCelebrating] = useState(false);
 
   if (loading) return <p style={{ color: C.slate }}>Loading…</p>;
 
@@ -68,8 +71,12 @@ export function GoalDetailScreen({ goalId }) {
     if (!savedRands) return;
     setActionError(null);
     try {
-      await updateGoal(goal.id, { saved_cents: goal.saved_cents + randsToCents(Number(savedRands)) });
+      const newSavedCents = goal.saved_cents + randsToCents(Number(savedRands));
+      await updateGoal(goal.id, { saved_cents: newSavedCents });
       setSavedRands('');
+      if (goal.saved_cents < goal.target_cents && newSavedCents >= goal.target_cents) {
+        setCelebrating(true);
+      }
     } catch (e) {
       setActionError(describeActionError(e));
     }
@@ -105,12 +112,17 @@ export function GoalDetailScreen({ goalId }) {
 
       <Card style={{ marginBottom: '1rem' }}>
         <span className="label">Progress</span>
-        <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>
-          {formatRands(goal.saved_cents)} <span style={{ fontSize: '1rem', color: C.slate }}>of {formatRands(goal.target_cents)}</span>
-        </p>
-        {goal.apr > 0 && (
-          <p style={{ color: C.sageDeep, fontSize: '0.8rem', marginTop: '0.2rem' }}>Earning {goal.apr}% APR</p>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '0.5rem' }}>
+          <GoalProgressRing progress={goal.saved_cents / goal.target_cents} />
+          <div>
+            <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>
+              {formatRands(goal.saved_cents)} <span style={{ fontSize: '1rem', color: C.slate }}>of {formatRands(goal.target_cents)}</span>
+            </p>
+            {goal.apr > 0 && (
+              <p style={{ color: C.sageDeep, fontSize: '0.8rem', marginTop: '0.2rem' }}>Earning {goal.apr}% APR</p>
+            )}
+          </div>
+        </div>
 
         {projection.mode === 'target_date' && (
           <>
@@ -180,6 +192,8 @@ export function GoalDetailScreen({ goalId }) {
 
       {deleteError && <p style={{ color: C.over, fontSize: '0.85rem', marginBottom: '0.5rem' }}>{deleteError}</p>}
       <Button variant="ghost" onClick={handleDelete}>Delete goal</Button>
+
+      {celebrating && <GoalCelebration goalName={goal.name} onDismiss={() => setCelebrating(false)} />}
     </div>
   );
 }
