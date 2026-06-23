@@ -21,6 +21,15 @@ export function monthTotals(events, referenceDate = new Date()) {
   return { expenseCents, incomeCents };
 }
 
+// Projects a full month's total from partial-month spend, scaling by how far the reference
+// date is into the month — the same trick period trackers use to estimate from day one
+// instead of waiting for a full cycle of history.
+export function extrapolateMonthCents(centsSoFar, referenceDate = new Date()) {
+  const elapsedDays = referenceDate.getDate();
+  const totalDays = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0).getDate();
+  return Math.round((centsSoFar / elapsedDays) * totalDays);
+}
+
 // Average expense over the trailing `monthsBack` calendar months (excluding the current,
 // possibly-partial month), used as the denominator for the runway formula.
 export function trailingMonthlyExpenseAverage(events, referenceDate = new Date(), monthsBack = 3) {
@@ -33,10 +42,11 @@ export function trailingMonthlyExpenseAverage(events, referenceDate = new Date()
   }
 
   if (totals.length === 0) {
-    // Not enough history — fall back to the current (partial) month so the UI can show an
-    // honest "estimate based on limited history" rather than a hard "no data" wall.
+    // No prior months yet — extrapolate from the current (partial) month so the UI can show
+    // an honest day-one estimate rather than a hard "no data" wall.
     const { expenseCents } = monthTotals(events, referenceDate);
-    return expenseCents > 0 ? { average: expenseCents, estimated: true } : { average: 0, estimated: true };
+    if (expenseCents === 0) return { average: 0, estimated: true };
+    return { average: extrapolateMonthCents(expenseCents, referenceDate), estimated: true };
   }
 
   const average = totals.reduce((sum, v) => sum + v, 0) / totals.length;

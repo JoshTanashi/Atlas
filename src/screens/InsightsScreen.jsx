@@ -12,7 +12,7 @@ import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { trailingMonthlyExpenseTotals, categoryBreakdown, monthTotals } from '../lib/aggregates.js';
+import { trailingMonthlyExpenseTotals, categoryBreakdown, monthTotals, extrapolateMonthCents } from '../lib/aggregates.js';
 import { forecastNextMonthCents } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { navigate, replaceRoute } from '../lib/nav.js';
@@ -158,7 +158,11 @@ export function InsightsScreen() {
 
   const trailing = trailingMonthlyExpenseTotals(events);
   const hasTrend = trailing.some((v) => v > 0);
-  const forecastCents = hasTrend ? forecastNextMonthCents(trailing) : null;
+  // With no prior months yet, project a day-one estimate from this month's spend so far
+  // rather than waiting for a few months of trend data — the trend math takes over the
+  // moment hasTrend flips true.
+  const forecastCents = hasTrend ? forecastNextMonthCents(trailing) : expenseCents > 0 ? extrapolateMonthCents(expenseCents) : null;
+  const forecastEstimated = !hasTrend && expenseCents > 0;
   const breakdown = categoryBreakdown(events);
 
   return (
@@ -166,7 +170,7 @@ export function InsightsScreen() {
       <ScreenHeader title="Insights" />
       <OverviewCard budget={budget} income={income} debts={debts} expenseCents={expenseCents} incomeCents={incomeCents} />
       <div style={{ height: '1rem' }} />
-      <ForecastCard forecastCents={forecastCents} />
+      <ForecastCard forecastCents={forecastCents} estimated={forecastEstimated} />
       <div style={{ height: '1rem' }} />
       <CategoryBreakdownCard breakdown={breakdown} />
       <div style={{ height: '1rem' }} />
@@ -233,7 +237,7 @@ function OverviewCard({ budget, income, debts, expenseCents, incomeCents }) {
   );
 }
 
-function ForecastCard({ forecastCents }) {
+function ForecastCard({ forecastCents, estimated }) {
   return (
     <Card style={{ marginBottom: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
@@ -246,12 +250,14 @@ function ForecastCard({ forecastCents }) {
         <>
           <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>{formatRands(Math.max(0, forecastCents))}</p>
           <p style={{ color: C.slate, fontSize: '0.85rem', marginTop: '0.25rem' }}>
-            Based on your spending trend over the last 3 months.
+            {estimated
+              ? "Early estimate, projected from this month's spending so far."
+              : 'Based on your spending trend over the last 3 months.'}
           </p>
         </>
       ) : (
         <p style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.4rem' }}>
-          Not enough history yet — log a few more months to see a forecast.
+          Log an expense to see an early forecast.
         </p>
       )}
     </Card>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { monthTotals, trailingMonthlyExpenseAverage, trailingMonthlyExpenseTotals } from '../lib/aggregates.js';
+import { monthTotals, trailingMonthlyExpenseAverage, trailingMonthlyExpenseTotals, extrapolateMonthCents } from '../lib/aggregates.js';
 
 const ref = new Date(2026, 5, 22); // June 22, 2026
 
@@ -23,11 +23,28 @@ describe('trailingMonthlyExpenseAverage', () => {
     expect(result.estimated).toBe(false);
   });
 
-  it('falls back to current-month estimate when there is no prior history', () => {
+  it('falls back to a day-elapsed projection of the current month when there is no prior history', () => {
     const events = [ev(15000, 'expense', 0)];
-    const result = trailingMonthlyExpenseAverage(events, ref, 3);
+    const result = trailingMonthlyExpenseAverage(events, ref, 3); // ref = June 22 (day 22 of 30)
     expect(result.estimated).toBe(true);
-    expect(result.average).toBe(15000);
+    expect(result.average).toBe(Math.round((15000 / 22) * 30));
+  });
+
+  it('reports a zero estimate when nothing has been logged this month either', () => {
+    const result = trailingMonthlyExpenseAverage([], ref, 3);
+    expect(result).toEqual({ average: 0, estimated: true });
+  });
+});
+
+describe('extrapolateMonthCents', () => {
+  it('projects a full month from a single early day of spend', () => {
+    const day1 = new Date(2026, 5, 1);
+    expect(extrapolateMonthCents(1000, day1)).toBe(30000); // June has 30 days
+  });
+
+  it('projects less aggressively as more of the month has elapsed', () => {
+    const day22 = new Date(2026, 5, 22);
+    expect(extrapolateMonthCents(22000, day22)).toBe(30000);
   });
 });
 
