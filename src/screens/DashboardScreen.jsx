@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Percent, Wallet, Hourglass, PieChart as PieIcon, Sparkles, Crown } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
@@ -7,11 +8,13 @@ import { Button } from '../components/ui/Button.jsx';
 import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
 import { StatTile } from '../components/ui/StatTile.jsx';
 import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
+import { ProPlansModal } from '../components/pro/ProPlansModal.jsx';
 import { formatRands } from '../lib/money.js';
 import { navigate } from '../lib/nav.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
+import { useAuth } from '../hooks/useAuth.jsx';
 import { monthTotals, trailingMonthlyExpenseAverage, categoryBreakdown } from '../lib/aggregates.js';
 import { savingsRate, netWorth, runwayMonths } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
@@ -23,10 +26,12 @@ const SAMPLE_BREAKDOWN = [
 ];
 
 export function DashboardScreen() {
+  const { session } = useAuth();
   const { events, loading: eventsLoading } = useEvents();
   const { income, accounts, debts, loading: baselineLoading } = useBaseline();
   const { profile, loading: profileLoading } = useProfile();
   const [insight, setInsight] = useState(null);
+  const [proModalOpen, setProModalOpen] = useState(false);
 
   useEffect(() => {
     if (!profile?.is_pro) return;
@@ -151,9 +156,15 @@ export function DashboardScreen() {
             <MiniInsightCard insight={insight} />
           </>
         ) : (
-          <ProTeaserCard />
+          <ProTeaserCard onClick={() => setProModalOpen(true)} />
         )}
       </div>
+
+      <AnimatePresence>
+        {proModalOpen && (
+          <ProPlansModal onClose={() => setProModalOpen(false)} session={session} profile={profile} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -219,14 +230,14 @@ function MiniInsightCard({ insight }) {
   );
 }
 
-function ProTeaserCard() {
+function ProTeaserCard({ onClick }) {
   return (
     <div style={{ position: 'relative' }}>
       <div style={{ filter: 'blur(4px)', opacity: 0.6, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
         <MiniCategoryCard breakdown={SAMPLE_BREAKDOWN} />
       </div>
       <button
-        onClick={() => navigate('/insights')}
+        onClick={onClick}
         style={{
           position: 'absolute',
           inset: 0,

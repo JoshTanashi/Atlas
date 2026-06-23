@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { PieChart as RPieChart, Pie, Cell, Tooltip } from 'recharts';
 import { TrendingUp, Sparkles, Crown, PieChart, Target, Banknote, PiggyBank, CreditCard } from 'lucide-react';
 import { C, F } from '../tokens.js';
@@ -7,6 +8,7 @@ import { Button } from '../components/ui/Button.jsx';
 import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
 import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
 import { StatTile } from '../components/ui/StatTile.jsx';
+import { ProPlansModal } from '../components/pro/ProPlansModal.jsx';
 import { formatRands } from '../lib/money.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
@@ -15,7 +17,7 @@ import { useAuth } from '../hooks/useAuth.jsx';
 import { trailingMonthlyExpenseTotals, categoryBreakdown, monthTotals, extrapolateMonthCents } from '../lib/aggregates.js';
 import { forecastNextMonthCents } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
-import { navigate, replaceRoute } from '../lib/nav.js';
+import { replaceRoute } from '../lib/nav.js';
 
 const SAMPLE_BREAKDOWN = [
   { category: 'groceries', cents: 320000 },
@@ -32,9 +34,8 @@ export function InsightsScreen() {
   const { income, budget, debts, loading: baselineLoading } = useBaseline();
   const { profile, loading: profileLoading, refresh: refreshProfile } = useProfile();
 
-  const [checkoutError, setCheckoutError] = useState(null);
-  const [checkoutLoading, setCheckoutLoading] = useState(null); // 'monthly' | 'yearly' | null
   const [confirmingCheckout, setConfirmingCheckout] = useState(false);
+  const [proModalOpen, setProModalOpen] = useState(false);
 
   const [insight, setInsight] = useState(null);
   const [insightLoading, setInsightLoading] = useState(false);
@@ -68,24 +69,6 @@ export function InsightsScreen() {
       .maybeSingle()
       .then(({ data }) => { if (data) setInsight(data); });
   }, [profile?.is_pro]);
-
-  async function handleUpgrade(plan) {
-    if (!session) {
-      navigate('/sign-up');
-      return;
-    }
-    setCheckoutError(null);
-    setCheckoutLoading(plan);
-    try {
-      if (!navigator.onLine) throw new Error('OFFLINE');
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', { body: { plan } });
-      if (error) throw error;
-      window.location.href = data.url;
-    } catch (e) {
-      setCheckoutError(e.message === 'OFFLINE' ? "You're offline — connect to upgrade." : 'Could not start checkout. Please try again.');
-      setCheckoutLoading(null);
-    }
-  }
 
   async function handleGenerateInsight() {
     setInsightError(null);
@@ -134,24 +117,15 @@ export function InsightsScreen() {
               <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '1rem' }}>
                 AI-read spending insights, a next-month forecast, and a category breakdown of where your money goes.
               </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                {!session ? (
-                  <Button onClick={() => handleUpgrade('monthly')}>Create an account to go Pro</Button>
-                ) : (
-                  <>
-                    <Button onClick={() => handleUpgrade('monthly')} disabled={checkoutLoading !== null}>
-                      {checkoutLoading === 'monthly' ? 'Redirecting…' : 'Upgrade — R99/month'}
-                    </Button>
-                    <Button variant="secondary" onClick={() => handleUpgrade('yearly')} disabled={checkoutLoading !== null}>
-                      {checkoutLoading === 'yearly' ? 'Redirecting…' : 'Upgrade — R999/year'}
-                    </Button>
-                  </>
-                )}
-              </div>
-              {checkoutError && <p style={{ color: C.over, fontSize: '0.8rem', marginTop: '0.6rem' }}>{checkoutError}</p>}
+              <Button onClick={() => setProModalOpen(true)} style={{ width: '100%' }}>See Pro plans</Button>
             </Card>
           </div>
         </div>
+        <AnimatePresence>
+          {proModalOpen && (
+            <ProPlansModal onClose={() => setProModalOpen(false)} session={session} profile={profile} />
+          )}
+        </AnimatePresence>
       </div>
     );
   }

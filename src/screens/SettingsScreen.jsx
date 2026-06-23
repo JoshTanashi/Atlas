@@ -1,13 +1,16 @@
 import { useState } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import {
   User, Crown, Lock, MessageSquare, Info, LogOut, Trash2, Sun, Check,
   Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, Banknote, Target,
 } from 'lucide-react';
 import { C, F } from '../tokens.js';
-import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
+import { SettingsGroup, SettingsGroupList } from '../components/ui/SettingsGroup.jsx';
+import { SettingsRow, SettingsRowExpand } from '../components/ui/SettingsRow.jsx';
+import { ProPlansModal } from '../components/pro/ProPlansModal.jsx';
 import { friendlyAuthError } from '../lib/authError.js';
 import { navigate } from '../lib/nav.js';
 import { formatRands, randsToCents, centsToRands } from '../lib/money.js';
@@ -21,10 +24,6 @@ import { supabase } from '../lib/supabaseClient.js';
 
 const ACCOUNT_ICONS = { checking: Landmark, savings: PiggyBank, investment: TrendingUp, other: Wallet };
 
-function SectionLabel({ children }) {
-  return <p className="label" style={{ marginBottom: '0.6rem' }}>{children}</p>;
-}
-
 function IconBadge({ icon: Icon, color = C.sageDeep, background = C.cream }) {
   return (
     <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '2rem', height: '2rem', borderRadius: '50%', background, flexShrink: 0 }}>
@@ -33,30 +32,30 @@ function IconBadge({ icon: Icon, color = C.sageDeep, background = C.cream }) {
   );
 }
 
-function CardHeader({ icon, label }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
-      <IconBadge icon={icon} />
-      <span style={{ color: C.ink, fontSize: '0.95rem', fontWeight: 500 }}>{label}</span>
-    </div>
-  );
-}
-
 export function SettingsScreen() {
   const { session, signOut } = useAuth();
   const { profile, updateDisplayName } = useProfile();
   const { income, budget, accounts, debts, setMonthlyIncome, setMonthlyBudget, upsertAccount, deleteAccount, upsertDebt, deleteDebt } = useBaseline();
   const { events } = useEvents();
+  const { theme } = useTheme();
+  const [expanded, setExpanded] = useState(null);
+  const [proModalOpen, setProModalOpen] = useState(false);
+
+  function toggle(id) {
+    setExpanded((cur) => (cur === id ? null : id));
+  }
 
   function describeBaselineError(e) {
     return e.message === 'OFFLINE' ? "You're offline — connect to save changes." : 'Could not save. Please try again.';
   }
 
+  const currentThemeLabel = THEMES.find((t) => t.id === theme)?.label ?? 'Light';
+
   return (
     <div>
       <ScreenHeader title="Settings" />
 
-      <Card style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.9rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1.5rem' }}>
         <span
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -80,61 +79,144 @@ export function SettingsScreen() {
             <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.2rem' }}>Free plan</p>
           )}
         </div>
-      </Card>
+      </div>
 
-      <SectionLabel>Profile</SectionLabel>
-      <ProfileCard displayName={profile?.display_name} onSave={updateDisplayName} />
+      <SettingsGroupList>
+        <SettingsGroup label="About me">
+          <SettingsRow
+            icon={User}
+            label="Display name"
+            value={profile?.display_name || 'Not set'}
+            chevron
+            onClick={() => toggle('name')}
+          />
+          <AnimatePresence initial={false}>
+            {expanded === 'name' && (
+              <SettingsRowExpand>
+                <DisplayNamePanel displayName={profile?.display_name} onSave={updateDisplayName} />
+              </SettingsRowExpand>
+            )}
+          </AnimatePresence>
+        </SettingsGroup>
 
-      <SectionLabel>Plans & pricing</SectionLabel>
-      <PricingCard profile={profile} session={session} />
+        <SettingsGroup label="Plans & pricing">
+          <SettingsRow
+            icon={Crown}
+            label="Atlas Pro"
+            pill={profile?.is_pro ? (profile.pro_plan ? `${profile.pro_plan[0].toUpperCase()}${profile.pro_plan.slice(1)}` : 'Pro') : 'Free'}
+            chevron
+            onClick={() => setProModalOpen(true)}
+          />
+        </SettingsGroup>
 
-      <SectionLabel>Appearance</SectionLabel>
-      <AppearanceCard />
+        <SettingsGroup label="General settings">
+          <SettingsRow icon={Sun} label="Theme" value={currentThemeLabel} chevron onClick={() => toggle('theme')} />
+          <AnimatePresence initial={false}>
+            {expanded === 'theme' && <SettingsRowExpand><ThemePanel /></SettingsRowExpand>}
+          </AnimatePresence>
 
-      <SectionLabel>Money</SectionLabel>
-      <MoneySection
-        income={income}
-        budget={budget}
-        accounts={accounts}
-        debts={debts}
-        setMonthlyIncome={setMonthlyIncome}
-        setMonthlyBudget={setMonthlyBudget}
-        upsertAccount={upsertAccount}
-        deleteAccount={deleteAccount}
-        upsertDebt={upsertDebt}
-        deleteDebt={deleteDebt}
-        describeBaselineError={describeBaselineError}
-      />
+          <SettingsRow
+            icon={Download}
+            label="Download my data"
+            onClick={() => exportData({ events, income, accounts, debts })}
+          />
+        </SettingsGroup>
 
-      <SectionLabel>Your data</SectionLabel>
-      <Card style={{ marginBottom: '1rem' }}>
-        <Button
-          variant="secondary"
-          onClick={() => exportData({ events, income, accounts, debts })}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-        >
-          <Download size={16} strokeWidth={2} /> Download my data
-        </Button>
-      </Card>
+        <SettingsGroup label="Money">
+          <SettingsRow
+            icon={Banknote}
+            label="Monthly income"
+            value={income ? formatRands(income.monthly_income_cents) : 'Not set'}
+            chevron
+            onClick={() => toggle('income')}
+          />
+          <AnimatePresence initial={false}>
+            {expanded === 'income' && (
+              <SettingsRowExpand>
+                <IncomePanel income={income} setMonthlyIncome={setMonthlyIncome} describeBaselineError={describeBaselineError} />
+              </SettingsRowExpand>
+            )}
+          </AnimatePresence>
 
-      {session && (
-        <>
-          <SectionLabel>Security</SectionLabel>
-          <PasswordCard />
-        </>
-      )}
+          <SettingsRow
+            icon={Target}
+            label="Monthly budget"
+            value={budget ? formatRands(budget.monthly_budget_cents) : 'Not set'}
+            chevron
+            onClick={() => toggle('budget')}
+          />
+          <AnimatePresence initial={false}>
+            {expanded === 'budget' && (
+              <SettingsRowExpand>
+                <BudgetPanel budget={budget} setMonthlyBudget={setMonthlyBudget} describeBaselineError={describeBaselineError} />
+              </SettingsRowExpand>
+            )}
+          </AnimatePresence>
 
-      <SectionLabel>Feedback</SectionLabel>
-      <FeedbackCard userId={session?.user?.id} />
+          <SettingsRow
+            icon={Landmark}
+            label="Accounts & balances"
+            value={accounts.length ? `${accounts.length}` : 'None'}
+            chevron
+            onClick={() => toggle('accounts')}
+          />
+          <AnimatePresence initial={false}>
+            {expanded === 'accounts' && (
+              <SettingsRowExpand>
+                <AccountsPanel accounts={accounts} upsertAccount={upsertAccount} deleteAccount={deleteAccount} describeBaselineError={describeBaselineError} />
+              </SettingsRowExpand>
+            )}
+          </AnimatePresence>
 
-      <SectionLabel>About</SectionLabel>
-      <Card style={{ marginBottom: '1rem' }}>
-        <CardHeader icon={Info} label="Atlas" />
-        <p style={{ color: C.slate, fontSize: '0.85rem' }}>Version 1.0 — a calm, honest journal for your money.</p>
-      </Card>
+          <SettingsRow
+            icon={CreditCard}
+            label="Debts"
+            value={debts.length ? `${debts.length}` : 'None'}
+            chevron
+            onClick={() => toggle('debts')}
+          />
+          <AnimatePresence initial={false}>
+            {expanded === 'debts' && (
+              <SettingsRowExpand>
+                <DebtsPanel debts={debts} upsertDebt={upsertDebt} deleteDebt={deleteDebt} describeBaselineError={describeBaselineError} />
+              </SettingsRowExpand>
+            )}
+          </AnimatePresence>
+        </SettingsGroup>
 
-      <SectionLabel>Account</SectionLabel>
-      <AccountCard session={session} signOut={signOut} />
+        {session && (
+          <SettingsGroup label="Security">
+            <SettingsRow icon={Lock} label="Change password" chevron onClick={() => toggle('password')} />
+            <AnimatePresence initial={false}>
+              {expanded === 'password' && <SettingsRowExpand><PasswordPanel /></SettingsRowExpand>}
+            </AnimatePresence>
+          </SettingsGroup>
+        )}
+
+        <SettingsGroup label="Contact Us">
+          <SettingsRow icon={MessageSquare} label="Send feedback" chevron onClick={() => toggle('feedback')} />
+          <AnimatePresence initial={false}>
+            {expanded === 'feedback' && <SettingsRowExpand><FeedbackPanel userId={session?.user?.id} /></SettingsRowExpand>}
+          </AnimatePresence>
+
+          <SettingsRow icon={Info} label="Atlas" value="v1.0" />
+        </SettingsGroup>
+
+        <SettingsGroup label="Account">
+          {session ? (
+            <SettingsRow icon={LogOut} label="Sign out" onClick={signOut} />
+          ) : (
+            <SettingsRow icon={User} label="Create an account" chevron onClick={() => navigate('/sign-up')} />
+          )}
+          <AccountDangerRow session={session} signOut={signOut} />
+        </SettingsGroup>
+      </SettingsGroupList>
+
+      <AnimatePresence>
+        {proModalOpen && (
+          <ProPlansModal onClose={() => setProModalOpen(false)} profile={profile} session={session} />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -150,75 +232,48 @@ function exportData({ events, income, accounts, debts }) {
   URL.revokeObjectURL(url);
 }
 
-function AccountCard({ session, signOut }) {
-  const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState(null);
-  const [clearing, setClearing] = useState(false);
+function AccountDangerRow({ session, signOut }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
 
   async function handleDeleteAccount() {
     if (!window.confirm('This permanently deletes your account and all data. This cannot be undone. Continue?')) return;
-    setDeleting(true);
-    setDeleteError(null);
+    setBusy(true);
+    setError(null);
     try {
-      const { error } = await supabase.functions.invoke('delete-account');
-      if (error) throw error;
+      const { error: invokeError } = await supabase.functions.invoke('delete-account');
+      if (invokeError) throw invokeError;
       await signOut();
     } catch {
-      setDeleteError('Could not delete your account. Please try again, or contact support.');
-      setDeleting(false);
+      setError('Could not delete your account. Please try again, or contact support.');
+      setBusy(false);
     }
   }
 
   async function handleClearLocalData() {
     if (!window.confirm('This permanently deletes everything saved on this device. This cannot be undone. Continue?')) return;
-    setClearing(true);
+    setBusy(true);
     try {
       await signOut();
     } finally {
-      setClearing(false);
+      setBusy(false);
     }
   }
 
-  if (!session) {
-    return (
-      <Card style={{ marginBottom: '1rem' }}>
-        <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.75rem' }}>
-          Your data is saved only on this device. Create an account to back it up and sync across devices.
-        </p>
-        <Button onClick={() => navigate('/sign-up')} style={{ width: '100%', marginBottom: '0.5rem' }}>
-          Create an account
-        </Button>
-        <Button
-          variant="ghost"
-          onClick={handleClearLocalData}
-          disabled={clearing}
-          style={{ width: '100%', color: C.over, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-        >
-          <Trash2 size={16} strokeWidth={2} /> {clearing ? 'Clearing…' : 'Clear all local data'}
-        </Button>
-      </Card>
-    );
-  }
-
   return (
-    <Card style={{ marginBottom: '1rem' }}>
-      <Button variant="ghost" onClick={signOut} style={{ width: '100%', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-        <LogOut size={16} strokeWidth={2} /> Sign out
-      </Button>
-      {deleteError && <p style={{ color: C.over, fontSize: '0.85rem', marginBottom: '0.5rem' }}>{deleteError}</p>}
-      <Button
-        variant="ghost"
-        onClick={handleDeleteAccount}
-        disabled={deleting}
-        style={{ width: '100%', color: C.over, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
-      >
-        <Trash2 size={16} strokeWidth={2} /> {deleting ? 'Deleting…' : 'Delete my account and all data'}
-      </Button>
-    </Card>
+    <>
+      <SettingsRow
+        icon={Trash2}
+        label={busy ? 'Working…' : session ? 'Delete my account and all data' : 'Clear all local data'}
+        danger
+        onClick={session ? handleDeleteAccount : handleClearLocalData}
+      />
+      {error && <p style={{ color: C.over, fontSize: '0.85rem', padding: '0 1rem 0.85rem' }}>{error}</p>}
+    </>
   );
 }
 
-function ProfileCard({ displayName, onSave }) {
+function DisplayNamePanel({ displayName, onSave }) {
   const [name, setName] = useState(displayName ?? '');
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(null);
@@ -235,180 +290,53 @@ function ProfileCard({ displayName, onSave }) {
   }
 
   return (
-    <Card style={{ marginBottom: '1rem' }}>
-      <CardHeader icon={User} label="Display name" />
+    <div>
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <Input value={name} onChange={(e) => { setName(e.target.value); setSaved(false); }} placeholder="Your name" />
         <Button style={{ height: 'fit-content' }} onClick={handleSave}>Save</Button>
       </div>
       {saved && <p style={{ color: C.sageDeep, fontSize: '0.85rem', marginTop: '0.4rem' }}>Saved.</p>}
       {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.4rem' }}>{error}</p>}
-    </Card>
+    </div>
   );
 }
 
-const FREE_FEATURES = [
-  'Unlimited manual journal entries',
-  'Accounts, debts & goal tracking',
-  'Savings rate & net worth on the dashboard',
-  'Cloud sync across your devices',
-];
-
-const PRO_FEATURES = [
-  'Everything in Free',
-  'AI-generated spending insights',
-  'Next-month spend forecast',
-  'Category breakdown of where money goes',
-];
-
-const MONTHLY_CENTS = 9900;
-const YEARLY_CENTS = 99900;
-const YEARLY_SAVINGS_CENTS = MONTHLY_CENTS * 12 - YEARLY_CENTS;
-
-function FeatureList({ items }) {
-  return (
-    <ul style={{ listStyle: 'none', margin: '0.75rem 0', padding: 0, display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-      {items.map((item) => (
-        <li key={item} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem', color: C.slate, fontSize: '0.85rem' }}>
-          <Check size={14} strokeWidth={2.5} color={C.sageDeep} style={{ marginTop: '0.15rem', flexShrink: 0 }} />
-          {item}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function PricingCard({ profile, session }) {
-  const [plan, setPlan] = useState('monthly');
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
-  const [checkoutError, setCheckoutError] = useState(null);
-
-  if (profile?.is_pro) {
-    const planLabel = profile?.pro_plan ? `${profile.pro_plan[0].toUpperCase()}${profile.pro_plan.slice(1)}` : 'Pro access';
-    const renewal = profile?.pro_current_period_end
-      ? new Date(profile.pro_current_period_end).toLocaleDateString('en-ZA', { month: 'long', day: 'numeric', year: 'numeric' })
-      : null;
-
-    return (
-      <Card style={{ marginBottom: '1rem' }}>
-        <CardHeader icon={Crown} label="Atlas Pro" />
-        <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-          {planLabel}{renewal ? ` — renews ${renewal}` : ''}
-        </p>
-        <FeatureList items={PRO_FEATURES} />
-      </Card>
-    );
-  }
-
-  async function handleUpgrade() {
-    if (!session) {
-      navigate('/sign-up');
-      return;
-    }
-    setCheckoutError(null);
-    setCheckoutLoading(true);
-    try {
-      if (!navigator.onLine) throw new Error('OFFLINE');
-      const { data, error } = await supabase.functions.invoke('create-checkout-session', { body: { plan: plan === 'annual' ? 'yearly' : 'monthly' } });
-      if (error) throw error;
-      window.location.href = data.url;
-    } catch (e) {
-      setCheckoutError(e.message === 'OFFLINE' ? "You're offline — connect to upgrade." : 'Could not start checkout. Please try again.');
-      setCheckoutLoading(false);
-    }
-  }
-
-  return (
-    <Card style={{ marginBottom: '1rem' }}>
-      <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1rem' }}>
-        <div style={{ flex: 1, padding: '0.9rem', borderRadius: '12px', border: `1px solid ${C.line}` }}>
-          <span className="label">Free</span>
-          <p style={{ fontFamily: F.serif, fontSize: '1.3rem', color: C.ink, margin: '0.3rem 0' }}>R0</p>
-          <FeatureList items={FREE_FEATURES} />
-        </div>
-        <div style={{ flex: 1, padding: '0.9rem', borderRadius: '12px', border: `1.5px solid ${C.sageDeep}`, background: C.cream }}>
-          <span className="label" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <Crown size={13} strokeWidth={2} color={C.clay} /> Pro
-          </span>
-          <p style={{ fontFamily: F.serif, fontSize: '1.3rem', color: C.ink, margin: '0.3rem 0' }}>
-            {formatRands(plan === 'annual' ? YEARLY_CENTS / 12 : MONTHLY_CENTS)}<span style={{ fontSize: '0.75rem', color: C.slate }}>/mo</span>
-          </p>
-          <FeatureList items={PRO_FEATURES} />
-        </div>
-      </div>
-
-      <div style={{ display: 'flex', borderRadius: '10px', border: `1px solid ${C.line}`, padding: '0.2rem', marginBottom: '0.75rem' }}>
-        {['monthly', 'annual'].map((p) => (
-          <button
-            key={p}
-            onClick={() => setPlan(p)}
-            style={{
-              flex: 1, padding: '0.5rem', borderRadius: '8px', border: 'none', cursor: 'pointer',
-              background: plan === p ? C.sageDeep : 'transparent',
-              color: plan === p ? C.paper : C.slate,
-              fontFamily: F.sans, fontSize: '0.85rem', fontWeight: 500,
-            }}
-          >
-            {p === 'monthly' ? 'Monthly' : `Annual — save ${formatRands(YEARLY_SAVINGS_CENTS)}`}
-          </button>
-        ))}
-      </div>
-
-      <Button onClick={handleUpgrade} disabled={checkoutLoading} style={{ width: '100%' }}>
-        {!session
-          ? 'Create an account to go Pro'
-          : checkoutLoading
-            ? 'Redirecting…'
-            : plan === 'annual' ? `Go Pro — ${formatRands(YEARLY_CENTS)}/year` : `Go Pro — ${formatRands(MONTHLY_CENTS)}/month`}
-      </Button>
-      {checkoutError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{checkoutError}</p>}
-    </Card>
-  );
-}
-
-function AppearanceCard() {
+function ThemePanel() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <Card style={{ marginBottom: '1rem' }}>
-      <CardHeader icon={Sun} label="Theme" />
-      <div style={{ display: 'flex', gap: '0.6rem' }}>
-        {THEMES.map((t) => {
-          const active = theme === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setTheme(t.id)}
-              style={{
-                flex: 1,
-                textAlign: 'left',
-                padding: '0.75rem',
-                borderRadius: '12px',
-                border: `1.5px solid ${active ? C.sageDeep : C.line}`,
-                background: C.paper,
-                cursor: 'pointer',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                <span style={{ color: C.ink, fontSize: '0.9rem', fontWeight: 500 }}>{t.label}</span>
-                {active && <Check size={15} strokeWidth={2.5} color={C.sageDeep} />}
-              </div>
-              <p style={{ color: C.slate, fontSize: '0.75rem' }}>{t.description}</p>
-            </button>
-          );
-        })}
-      </div>
-    </Card>
+    <div style={{ display: 'flex', gap: '0.6rem' }}>
+      {THEMES.map((t) => {
+        const active = theme === t.id;
+        return (
+          <button
+            key={t.id}
+            onClick={() => setTheme(t.id)}
+            style={{
+              flex: 1,
+              textAlign: 'left',
+              padding: '0.75rem',
+              borderRadius: '12px',
+              border: `1.5px solid ${active ? C.sageDeep : C.line}`,
+              background: C.paper,
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+              <span style={{ color: C.ink, fontSize: '0.9rem', fontWeight: 500 }}>{t.label}</span>
+              {active && <Check size={15} strokeWidth={2.5} color={C.sageDeep} />}
+            </div>
+            <p style={{ color: C.slate, fontSize: '0.75rem' }}>{t.description}</p>
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
-function MoneySection({ income, budget, accounts, debts, setMonthlyIncome, setMonthlyBudget, upsertAccount, deleteAccount, upsertDebt, deleteDebt, describeBaselineError }) {
+function IncomePanel({ income, setMonthlyIncome, describeBaselineError }) {
   const [incomeInput, setIncomeInput] = useState('');
   const [incomeError, setIncomeError] = useState(null);
-  const [budgetInput, setBudgetInput] = useState('');
-  const [budgetError, setBudgetError] = useState(null);
-  const [accountsError, setAccountsError] = useState(null);
-  const [debtsError, setDebtsError] = useState(null);
 
   async function handleSaveIncome() {
     if (!incomeInput) return;
@@ -421,6 +349,29 @@ function MoneySection({ income, budget, accounts, debts, setMonthlyIncome, setMo
     }
   }
 
+  return (
+    <div>
+      <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+        {income ? `Currently ${formatRands(income.monthly_income_cents)}/month` : 'Not set — unlocks your savings rate.'}
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <Input
+          type="number"
+          value={incomeInput}
+          onChange={(e) => setIncomeInput(e.target.value)}
+          placeholder={income ? centsToRands(income.monthly_income_cents).toString() : 'R per month'}
+        />
+        <Button style={{ height: 'fit-content' }} onClick={handleSaveIncome}>Save</Button>
+      </div>
+      {incomeError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{incomeError}</p>}
+    </div>
+  );
+}
+
+function BudgetPanel({ budget, setMonthlyBudget, describeBaselineError }) {
+  const [budgetInput, setBudgetInput] = useState('');
+  const [budgetError, setBudgetError] = useState(null);
+
   async function handleSaveBudget() {
     if (!budgetInput) return;
     setBudgetError(null);
@@ -432,110 +383,71 @@ function MoneySection({ income, budget, accounts, debts, setMonthlyIncome, setMo
     }
   }
 
-  async function handleUpsertAccount(name, kind, balanceRands) {
-    setAccountsError(null);
+  return (
+    <div>
+      <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+        {budget ? `Currently ${formatRands(budget.monthly_budget_cents)}/month` : 'Not set — unlocks a spending cap and progress bar.'}
+      </p>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <Input
+          type="number"
+          value={budgetInput}
+          onChange={(e) => setBudgetInput(e.target.value)}
+          placeholder={budget ? centsToRands(budget.monthly_budget_cents).toString() : 'R per month'}
+        />
+        <Button style={{ height: 'fit-content' }} onClick={handleSaveBudget}>Save</Button>
+      </div>
+      {budgetError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{budgetError}</p>}
+    </div>
+  );
+}
+
+function AccountsPanel({ accounts, upsertAccount, deleteAccount, describeBaselineError }) {
+  const [error, setError] = useState(null);
+
+  async function handleAdd(name, kind, balanceRands) {
+    setError(null);
     try {
       await upsertAccount({ name, kind, balance_cents: randsToCents(Number(balanceRands)) });
     } catch (e) {
-      setAccountsError(describeBaselineError(e));
+      setError(describeBaselineError(e));
     }
   }
 
-  async function handleRemoveAccount(id) {
-    setAccountsError(null);
+  async function handleRemove(id) {
+    setError(null);
     try {
       await deleteAccount(id);
     } catch (e) {
-      setAccountsError(describeBaselineError(e));
-    }
-  }
-
-  async function handleUpsertDebt(debt) {
-    setDebtsError(null);
-    try {
-      await upsertDebt(debt);
-    } catch (e) {
-      setDebtsError(describeBaselineError(e));
-    }
-  }
-
-  async function handleRemoveDebt(id) {
-    setDebtsError(null);
-    try {
-      await deleteDebt(id);
-    } catch (e) {
-      setDebtsError(describeBaselineError(e));
+      setError(describeBaselineError(e));
     }
   }
 
   return (
-    <>
-      <Card style={{ marginBottom: '1rem' }}>
-        <CardHeader icon={Banknote} label="Monthly income" />
-        <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-          {income ? `Currently ${formatRands(income.monthly_income_cents)}/month` : 'Not set — unlocks your savings rate.'}
-        </p>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <Input
-            type="number"
-            value={incomeInput}
-            onChange={(e) => setIncomeInput(e.target.value)}
-            placeholder={income ? centsToRands(income.monthly_income_cents).toString() : 'R per month'}
-          />
-          <Button style={{ height: 'fit-content' }} onClick={handleSaveIncome}>
-            Save
-          </Button>
-        </div>
-        {incomeError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{incomeError}</p>}
-      </Card>
-
-      <Card style={{ marginBottom: '1rem' }}>
-        <CardHeader icon={Target} label="Monthly budget" />
-        <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
-          {budget ? `Currently ${formatRands(budget.monthly_budget_cents)}/month` : 'Not set — unlocks a spending cap and progress bar.'}
-        </p>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <Input
-            type="number"
-            value={budgetInput}
-            onChange={(e) => setBudgetInput(e.target.value)}
-            placeholder={budget ? centsToRands(budget.monthly_budget_cents).toString() : 'R per month'}
-          />
-          <Button style={{ height: 'fit-content' }} onClick={handleSaveBudget}>
-            Save
-          </Button>
-        </div>
-        {budgetError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{budgetError}</p>}
-      </Card>
-
-      <BaselineListCard
-        title="Accounts & balances"
-        emptyHint="Unlocks net worth and emergency-fund runway."
-        items={accounts}
-        getIcon={(a) => ACCOUNT_ICONS[a.kind] ?? Wallet}
-        renderItem={(a) => `${a.name} — ${formatRands(a.balance_cents)}`}
-        renderSub={(a) => a.kind}
-        onAdd={handleUpsertAccount}
-        onDelete={handleRemoveAccount}
-        error={accountsError}
-        kindOptions={['checking', 'savings', 'investment', 'other']}
-      />
-
-      <DebtsCard debts={debts} onAdd={handleUpsertDebt} onDelete={handleRemoveDebt} error={debtsError} />
-    </>
+    <BaselineList
+      emptyHint="Unlocks net worth and emergency-fund runway."
+      items={accounts}
+      getIcon={(a) => ACCOUNT_ICONS[a.kind] ?? Wallet}
+      renderItem={(a) => `${a.name} — ${formatRands(a.balance_cents)}`}
+      renderSub={(a) => a.kind}
+      onAdd={handleAdd}
+      onDelete={handleRemove}
+      error={error}
+      kindOptions={['checking', 'savings', 'investment', 'other']}
+    />
   );
 }
 
-function BaselineListCard({ title, emptyHint, items, getIcon, renderItem, renderSub, onAdd, onDelete, error, kindOptions }) {
+function BaselineList({ emptyHint, items, getIcon, renderItem, renderSub, onAdd, onDelete, error, kindOptions }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [kind, setKind] = useState(kindOptions[0]);
   const [balance, setBalance] = useState('');
 
   return (
-    <Card style={{ marginBottom: '1rem' }}>
+    <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span className="label">{title}</span>
+        <span className="label">{items.length} saved</span>
         <Button variant="ghost" onClick={() => setAdding((v) => !v)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
           {adding ? 'Cancel' : '+ Add'}
         </Button>
@@ -571,21 +483,47 @@ function BaselineListCard({ title, emptyHint, items, getIcon, renderItem, render
         </div>
       )}
       {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
-    </Card>
+    </div>
   );
 }
 
-function DebtsCard({ debts, onAdd, onDelete, error }) {
+function DebtsPanel({ debts, upsertDebt, deleteDebt, describeBaselineError }) {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
   const [balance, setBalance] = useState('');
   const [apr, setApr] = useState('');
   const [payment, setPayment] = useState('');
+  const [error, setError] = useState(null);
+
+  async function handleAdd() {
+    if (!name || !balance || !apr) return;
+    setError(null);
+    try {
+      await upsertDebt({
+        name,
+        balance_cents: randsToCents(Number(balance)),
+        apr: Number(apr),
+        monthly_payment_cents: payment ? randsToCents(Number(payment)) : null,
+      });
+      setName(''); setBalance(''); setApr(''); setPayment(''); setAdding(false);
+    } catch (e) {
+      setError(describeBaselineError(e));
+    }
+  }
+
+  async function handleRemove(id) {
+    setError(null);
+    try {
+      await deleteDebt(id);
+    } catch (e) {
+      setError(describeBaselineError(e));
+    }
+  }
 
   return (
-    <Card style={{ marginBottom: '1rem' }}>
+    <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span className="label">Debts</span>
+        <span className="label">{debts.length} saved</span>
         <Button variant="ghost" onClick={() => setAdding((v) => !v)} style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}>
           {adding ? 'Cancel' : '+ Add'}
         </Button>
@@ -603,7 +541,7 @@ function DebtsCard({ debts, onAdd, onDelete, error }) {
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: C.ink, fontSize: '0.9rem' }}>{d.name} — {formatRands(d.balance_cents)} @ {d.apr}%</span>
-                <button onClick={() => onDelete(d.id)} style={{ background: 'none', border: 'none', color: C.slate }}>✕</button>
+                <button onClick={() => handleRemove(d.id)} style={{ background: 'none', border: 'none', color: C.slate }}>✕</button>
               </div>
               {result && (
                 <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.25rem' }}>
@@ -623,29 +561,16 @@ function DebtsCard({ debts, onAdd, onDelete, error }) {
             <input value={balance} onChange={(e) => setBalance(e.target.value)} type="number" placeholder="Balance (R)" style={{ flex: 1, minWidth: '90px', padding: '0.5rem', borderRadius: '8px', border: `1px solid ${C.line}` }} />
             <input value={apr} onChange={(e) => setApr(e.target.value)} type="number" placeholder="APR %" style={{ flex: 1, minWidth: '70px', padding: '0.5rem', borderRadius: '8px', border: `1px solid ${C.line}` }} />
             <input value={payment} onChange={(e) => setPayment(e.target.value)} type="number" placeholder="Payment/mo (R)" style={{ flex: 1, minWidth: '100px', padding: '0.5rem', borderRadius: '8px', border: `1px solid ${C.line}` }} />
-            <Button
-              onClick={() => {
-                if (!name || !balance || !apr) return;
-                onAdd({
-                  name,
-                  balance_cents: randsToCents(Number(balance)),
-                  apr: Number(apr),
-                  monthly_payment_cents: payment ? randsToCents(Number(payment)) : null,
-                });
-                setName(''); setBalance(''); setApr(''); setPayment(''); setAdding(false);
-              }}
-            >
-              Add
-            </Button>
+            <Button onClick={handleAdd}>Add</Button>
           </div>
         </div>
       )}
       {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
-    </Card>
+    </div>
   );
 }
 
-function PasswordCard() {
+function PasswordPanel() {
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saved, setSaved] = useState(false);
@@ -675,18 +600,17 @@ function PasswordCard() {
   }
 
   return (
-    <Card style={{ marginBottom: '1rem' }}>
-      <CardHeader icon={Lock} label="Change password" />
+    <div>
       <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="New password" />
       <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder="Confirm new password" />
       <Button onClick={handleSave} style={{ width: '100%' }}>Update password</Button>
       {saved && <p style={{ color: C.sageDeep, fontSize: '0.85rem', marginTop: '0.4rem' }}>Password updated.</p>}
       {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.4rem' }}>{error}</p>}
-    </Card>
+    </div>
   );
 }
 
-function FeedbackCard({ userId }) {
+function FeedbackPanel({ userId }) {
   const [message, setMessage] = useState('');
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(null);
@@ -710,8 +634,7 @@ function FeedbackCard({ userId }) {
   }
 
   return (
-    <Card style={{ marginBottom: '1rem' }}>
-      <CardHeader icon={MessageSquare} label="Send feedback" />
+    <div>
       <textarea
         value={message}
         onChange={(e) => { setMessage(e.target.value); setSent(false); }}
@@ -734,6 +657,6 @@ function FeedbackCard({ userId }) {
       <Button onClick={handleSend} style={{ width: '100%' }}>Send</Button>
       {sent && <p style={{ color: C.sageDeep, fontSize: '0.85rem', marginTop: '0.4rem' }}>Thanks — we read every one.</p>}
       {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.4rem' }}>{error}</p>}
-    </Card>
+    </div>
   );
 }
