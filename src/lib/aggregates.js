@@ -11,6 +11,21 @@ export const ALL_CATEGORIES = [
 export const ESSENTIAL_CATEGORIES = ['groceries', 'fuel', 'health', 'transport', 'subscriptions', 'airtime_data'];
 export const DISCRETIONARY_CATEGORIES = ['takeaways', 'shopping', 'uncategorized'];
 
+// One fixed hue per category, used everywhere a category is shown (icons, charts,
+// legends) so a category's color stays stable across screens and months instead
+// of shifting with its rank in that month's breakdown.
+export const CATEGORY_COLORS = {
+  takeaways: '#B0734A',
+  groceries: '#5B8C5A',
+  fuel: '#C58A3D',
+  health: '#A8534A',
+  airtime_data: '#4F7A8C',
+  shopping: '#8E6BA8',
+  subscriptions: '#3E5950',
+  transport: '#5B7B6F',
+  uncategorized: '#8C9A8A',
+};
+
 function isSameMonth(date, year, month) {
   return date.getFullYear() === year && date.getMonth() === month;
 }

@@ -16,7 +16,7 @@ import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useRecurringExpenses } from '../hooks/useRecurringExpenses.js';
-import { trailingVariableExpenseTotals, categoryBreakdown, monthTotals, extrapolateMonthCents } from '../lib/aggregates.js';
+import { trailingVariableExpenseTotals, categoryBreakdown, monthTotals, extrapolateMonthCents, CATEGORY_COLORS } from '../lib/aggregates.js';
 import { forecastNextMonth } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { replaceRoute } from '../lib/nav.js';
@@ -27,8 +27,6 @@ const SAMPLE_BREAKDOWN = [
   { category: 'takeaways', cents: 95000 },
   { category: 'subscriptions', cents: 42000 },
 ];
-
-const CHART_COLORS = ['#5B7B6F', '#B0734A', '#C58A3D', '#A8534A', '#3E5950', '#8C9A8A'];
 
 export function InsightsScreen() {
   const { session } = useAuth();
@@ -288,16 +286,16 @@ function CategoryBreakdownCard({ breakdown }) {
           <div style={{ width: '100%', height: 200, marginBottom: '0.6rem' }}>
             <RPieChart width={260} height={200} style={{ margin: '0 auto', display: 'block' }}>
               <Pie data={breakdown} dataKey="cents" nameKey="category" innerRadius={45} outerRadius={75} paddingAngle={2}>
-                {breakdown.map((entry, i) => (
-                  <Cell key={entry.category} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                {breakdown.map((entry) => (
+                  <Cell key={entry.category} fill={CATEGORY_COLORS[entry.category]} />
                 ))}
               </Pie>
               <Tooltip formatter={(cents) => formatRands(cents)} />
             </RPieChart>
           </div>
-          {breakdown.map(({ category, cents }, i) => (
+          {breakdown.map(({ category, cents }) => (
             <div key={category} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
-              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CATEGORY_COLORS[category], flexShrink: 0 }} />
               <CategoryIcon category={category} direction="expense" size={14} />
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
@@ -305,7 +303,7 @@ function CategoryBreakdownCard({ breakdown }) {
                   <span style={{ color: C.slate, fontSize: '0.85rem' }}>{formatRands(cents)}</span>
                 </div>
                 <div style={{ height: '6px', borderRadius: '4px', background: C.cream, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: CHART_COLORS[i % CHART_COLORS.length], borderRadius: '4px' }} />
+                  <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: CATEGORY_COLORS[category], borderRadius: '4px' }} />
                 </div>
               </div>
             </div>

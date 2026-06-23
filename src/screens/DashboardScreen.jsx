@@ -17,7 +17,7 @@ import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { monthTotals, trailingMonthlyExpenseAverage, essentialMonthlyExpenseAverage, trailingSavingsRateAverage, categoryBreakdown } from '../lib/aggregates.js';
+import { monthTotals, trailingMonthlyExpenseAverage, essentialMonthlyExpenseAverage, trailingSavingsRateAverage, categoryBreakdown, CATEGORY_COLORS } from '../lib/aggregates.js';
 import { savingsRate, netWorth, runwayMonths } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
 
@@ -239,7 +239,7 @@ function MiniCategoryCard({ breakdown }) {
                 <span style={{ color: C.slate, fontSize: '0.85rem' }}>{formatRands(cents)}</span>
               </div>
               <div style={{ height: '6px', borderRadius: '4px', background: C.cream, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: C.sage, borderRadius: '4px' }} />
+                <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: CATEGORY_COLORS[category], borderRadius: '4px' }} />
               </div>
             </div>
           </div>
