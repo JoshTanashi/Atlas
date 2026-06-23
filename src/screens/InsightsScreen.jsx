@@ -8,10 +8,11 @@ import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
 import { formatRands } from '../lib/money.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 import { useProfile } from '../hooks/useProfile.jsx';
+import { useAuth } from '../hooks/useAuth.jsx';
 import { trailingMonthlyExpenseTotals, categoryBreakdown } from '../lib/aggregates.js';
 import { forecastNextMonthCents } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
-import { replaceRoute } from '../lib/nav.js';
+import { navigate, replaceRoute } from '../lib/nav.js';
 
 const SAMPLE_BREAKDOWN = [
   { category: 'groceries', cents: 320000 },
@@ -21,6 +22,7 @@ const SAMPLE_BREAKDOWN = [
 ];
 
 export function InsightsScreen() {
+  const { session } = useAuth();
   const { events, loading: eventsLoading } = useEvents();
   const { profile, loading: profileLoading, refresh: refreshProfile } = useProfile();
 
@@ -62,6 +64,10 @@ export function InsightsScreen() {
   }, [profile?.is_pro]);
 
   async function handleUpgrade(plan) {
+    if (!session) {
+      navigate('/sign-up');
+      return;
+    }
     setCheckoutError(null);
     setCheckoutLoading(plan);
     try {
@@ -119,12 +125,18 @@ export function InsightsScreen() {
                 AI-read spending insights, a next-month forecast, and a category breakdown of where your money goes.
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <Button onClick={() => handleUpgrade('monthly')} disabled={checkoutLoading !== null}>
-                  {checkoutLoading === 'monthly' ? 'Redirecting…' : 'Upgrade — R99/month'}
-                </Button>
-                <Button variant="secondary" onClick={() => handleUpgrade('yearly')} disabled={checkoutLoading !== null}>
-                  {checkoutLoading === 'yearly' ? 'Redirecting…' : 'Upgrade — R999/year'}
-                </Button>
+                {!session ? (
+                  <Button onClick={() => handleUpgrade('monthly')}>Create an account to go Pro</Button>
+                ) : (
+                  <>
+                    <Button onClick={() => handleUpgrade('monthly')} disabled={checkoutLoading !== null}>
+                      {checkoutLoading === 'monthly' ? 'Redirecting…' : 'Upgrade — R99/month'}
+                    </Button>
+                    <Button variant="secondary" onClick={() => handleUpgrade('yearly')} disabled={checkoutLoading !== null}>
+                      {checkoutLoading === 'yearly' ? 'Redirecting…' : 'Upgrade — R999/year'}
+                    </Button>
+                  </>
+                )}
               </div>
               {checkoutError && <p style={{ color: C.over, fontSize: '0.8rem', marginTop: '0.6rem' }}>{checkoutError}</p>}
             </Card>

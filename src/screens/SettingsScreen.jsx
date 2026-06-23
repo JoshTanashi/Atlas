@@ -9,6 +9,7 @@ import { Button } from '../components/ui/Button.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
 import { friendlyAuthError } from '../lib/authError.js';
+import { navigate } from '../lib/nav.js';
 import { formatRands, randsToCents, centsToRands } from '../lib/money.js';
 import { debtAmortization } from '../lib/formulas.js';
 import { useAuth } from '../hooks/useAuth.jsx';
@@ -63,11 +64,15 @@ export function SettingsScreen() {
             background: C.sage, color: C.paper, fontFamily: F.serif, fontSize: '1.3rem', flexShrink: 0,
           }}
         >
-          {session?.user?.email?.[0]?.toUpperCase()}
+          {session ? session.user.email[0].toUpperCase() : 'G'}
         </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ color: C.ink, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>{session?.user?.email}</p>
-          {profile?.is_pro ? (
+          <p style={{ color: C.ink, fontSize: '0.95rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {session ? session.user.email : 'Guest'}
+          </p>
+          {!session ? (
+            <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.2rem' }}>Saved on this device only</p>
+          ) : profile?.is_pro ? (
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', marginTop: '0.3rem', fontSize: '0.75rem', color: C.clay, fontFamily: F.sans, fontWeight: 600 }}>
               <Crown size={13} strokeWidth={2} /> Atlas Pro
             </span>
@@ -81,7 +86,7 @@ export function SettingsScreen() {
       <ProfileCard displayName={profile?.display_name} onSave={updateDisplayName} />
 
       <SectionLabel>Plans & pricing</SectionLabel>
-      <PricingCard profile={profile} />
+      <PricingCard profile={profile} session={session} />
 
       <SectionLabel>Appearance</SectionLabel>
       <AppearanceCard />
@@ -110,8 +115,12 @@ export function SettingsScreen() {
         </Button>
       </Card>
 
-      <SectionLabel>Security</SectionLabel>
-      <PasswordCard />
+      {session && (
+        <>
+          <SectionLabel>Security</SectionLabel>
+          <PasswordCard />
+        </>
+      )}
 
       <SectionLabel>Feedback</SectionLabel>
       <FeedbackCard userId={session?.user?.id} />
@@ -123,7 +132,7 @@ export function SettingsScreen() {
       </Card>
 
       <SectionLabel>Account</SectionLabel>
-      <AccountCard signOut={signOut} />
+      <AccountCard session={session} signOut={signOut} />
     </div>
   );
 }
@@ -139,9 +148,10 @@ function exportData({ events, income, accounts, debts }) {
   URL.revokeObjectURL(url);
 }
 
-function AccountCard({ signOut }) {
+function AccountCard({ session, signOut }) {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [clearing, setClearing] = useState(false);
 
   async function handleDeleteAccount() {
     if (!window.confirm('This permanently deletes your account and all data. This cannot be undone. Continue?')) return;
@@ -155,6 +165,37 @@ function AccountCard({ signOut }) {
       setDeleteError('Could not delete your account. Please try again, or contact support.');
       setDeleting(false);
     }
+  }
+
+  async function handleClearLocalData() {
+    if (!window.confirm('This permanently deletes everything saved on this device. This cannot be undone. Continue?')) return;
+    setClearing(true);
+    try {
+      await signOut();
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  if (!session) {
+    return (
+      <Card style={{ marginBottom: '1rem' }}>
+        <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+          Your data is saved only on this device. Create an account to back it up and sync across devices.
+        </p>
+        <Button onClick={() => navigate('/sign-up')} style={{ width: '100%', marginBottom: '0.5rem' }}>
+          Create an account
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={handleClearLocalData}
+          disabled={clearing}
+          style={{ width: '100%', color: C.over, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+        >
+          <Trash2 size={16} strokeWidth={2} /> {clearing ? 'Clearing…' : 'Clear all local data'}
+        </Button>
+      </Card>
+    );
   }
 
   return (
@@ -235,7 +276,7 @@ function FeatureList({ items }) {
   );
 }
 
-function PricingCard({ profile }) {
+function PricingCard({ profile, session }) {
   const [plan, setPlan] = useState('monthly');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
@@ -258,6 +299,10 @@ function PricingCard({ profile }) {
   }
 
   async function handleUpgrade() {
+    if (!session) {
+      navigate('/sign-up');
+      return;
+    }
     setCheckoutError(null);
     setCheckoutLoading(true);
     try {
@@ -308,7 +353,11 @@ function PricingCard({ profile }) {
       </div>
 
       <Button onClick={handleUpgrade} disabled={checkoutLoading} style={{ width: '100%' }}>
-        {checkoutLoading ? 'Redirecting…' : plan === 'annual' ? `Go Pro — ${formatRands(YEARLY_CENTS)}/year` : `Go Pro — ${formatRands(MONTHLY_CENTS)}/month`}
+        {!session
+          ? 'Create an account to go Pro'
+          : checkoutLoading
+            ? 'Redirecting…'
+            : plan === 'annual' ? `Go Pro — ${formatRands(YEARLY_CENTS)}/year` : `Go Pro — ${formatRands(MONTHLY_CENTS)}/month`}
       </Button>
       {checkoutError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{checkoutError}</p>}
     </Card>
@@ -611,6 +660,10 @@ function FeedbackCard({ userId }) {
   async function handleSend() {
     if (!message.trim()) return;
     setError(null);
+    if (!userId) {
+      setError('Create an account to send feedback.');
+      return;
+    }
     try {
       if (!navigator.onLine) throw new Error('OFFLINE');
       const { error: insertError } = await supabase.from('feedback').insert({ user_id: userId, message: message.trim() });

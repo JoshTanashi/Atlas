@@ -1,9 +1,11 @@
 import { C, F } from '../../tokens.js';
 import { useOnlineStatus } from '../../hooks/useOnlineStatus.js';
+import { useAuth } from '../../hooks/useAuth.jsx';
 
 export function OfflineBanner() {
   const isOnline = useOnlineStatus();
-  if (isOnline) return null;
+  const { session } = useAuth();
+  if (isOnline || !session) return null; // guest writes are always local, so being offline never blocks a save
 
   return (
     <div

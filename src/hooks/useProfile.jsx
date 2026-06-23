@@ -1,16 +1,24 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient.js';
+import { loadGuestProfile, saveGuestProfile } from '../lib/guestStore.js';
 import { useAuth } from './useAuth.jsx';
 
 const ProfileContext = createContext(null);
 
 export function ProfileProvider({ children }) {
-  const { session } = useAuth();
+  const { session, guestMode } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!session) return;
+    if (!session && !guestMode) return;
+
+    if (!session) {
+      setProfile(loadGuestProfile());
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('display_name, is_pro, pro_plan, pro_current_period_end, onboarding_completed_at')
@@ -18,11 +26,15 @@ export function ProfileProvider({ children }) {
       .maybeSingle();
     if (!error && data) setProfile(data);
     setLoading(false);
-  }, [session]);
+  }, [session, guestMode]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   async function updateDisplayName(displayName) {
+    if (!session) {
+      setProfile(saveGuestProfile({ ...loadGuestProfile(), display_name: displayName }));
+      return;
+    }
     if (!navigator.onLine) throw new Error('OFFLINE');
     const { error } = await supabase
       .from('profiles')
@@ -34,6 +46,10 @@ export function ProfileProvider({ children }) {
 
   async function completeOnboarding() {
     const completedAt = new Date().toISOString();
+    if (!session) {
+      setProfile(saveGuestProfile({ ...loadGuestProfile(), onboarding_completed_at: completedAt }));
+      return;
+    }
     const { error } = await supabase
       .from('profiles')
       .update({ onboarding_completed_at: completedAt })

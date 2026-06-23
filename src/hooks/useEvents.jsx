@@ -6,17 +6,23 @@ import { useAuth } from './useAuth.jsx';
 const EventsContext = createContext(null);
 
 export function EventsProvider({ children }) {
-  const { session } = useAuth();
+  const { session, guestMode } = useAuth();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    if (!session) return;
+    if (!session && !guestMode) return;
 
     const cached = await getAll('events');
     if (cached.length) {
       setEvents(sortByOccurredAtDesc(cached));
       setLoading(false);
+    }
+
+    if (!session) {
+      // Guest mode: the device store is the only copy, nothing to sync.
+      setLoading(false);
+      return;
     }
 
     const { data, error } = await supabase
@@ -30,20 +36,16 @@ export function EventsProvider({ children }) {
       setEvents(sortByOccurredAtDesc(data));
     }
     setLoading(false);
-  }, [session]);
+  }, [session, guestMode]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
 
   async function logEvent(input) {
-    if (!navigator.onLine) {
-      throw new Error('OFFLINE');
-    }
-
     const row = {
       id: crypto.randomUUID(),
-      user_id: session.user.id,
+      user_id: session?.user?.id ?? 'guest',
       amount_cents: input.amountCents,
       direction: input.direction,
       merchant: input.merchant,
@@ -52,6 +54,16 @@ export function EventsProvider({ children }) {
       occurred_at: input.occurredAt ?? new Date().toISOString(),
       created_at: new Date().toISOString(),
     };
+
+    if (!session) {
+      await put('events', row);
+      setEvents((prev) => sortByOccurredAtDesc([row, ...prev]));
+      return row;
+    }
+
+    if (!navigator.onLine) {
+      throw new Error('OFFLINE');
+    }
 
     // Optimistic local update first so the Timeline feels instant.
     setEvents((prev) => sortByOccurredAtDesc([row, ...prev]));

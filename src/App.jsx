@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react';
 import { C, F } from './tokens.js';
 import { useRoute } from './lib/nav.js';
 import { useAuth } from './hooks/useAuth.jsx';
 import { EventsProvider } from './hooks/useEvents.jsx';
 import { ProfileProvider, useProfile } from './hooks/useProfile.jsx';
+import { migrateGuestData } from './lib/guestMigration.js';
 import { AppShell } from './components/layout/AppShell.jsx';
 import { OnboardingFlow } from './screens/onboarding/OnboardingFlow.jsx';
 import { DashboardScreen } from './screens/DashboardScreen.jsx';
@@ -19,6 +21,8 @@ import { ForgotPasswordScreen } from './screens/auth/ForgotPasswordScreen.jsx';
 import { ResetPasswordScreen } from './screens/auth/ResetPasswordScreen.jsx';
 import { VerifyEmailScreen } from './screens/auth/VerifyEmailScreen.jsx';
 
+const AUTH_PATHS = new Set(['/sign-up', '/sign-in', '/forgot-password', '/verify-email']);
+
 function AuthRouter({ pathname }) {
   switch (pathname) {
     case '/sign-up':
@@ -30,6 +34,78 @@ function AuthRouter({ pathname }) {
     default:
       return <SignInScreen />;
   }
+}
+
+function LoadingScreen() {
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.cream }}>
+      <p style={{ color: C.slate, fontFamily: F.sans }}>Loading…</p>
+    </div>
+  );
+}
+
+// Shown right after a guest creates/signs into an account: their local idb data
+// must be copied to Supabase before guestMode is cleared, otherwise the normal
+// authed refresh() paths would overwrite it with empty remote data first.
+function GuestMigrationGate({ session }) {
+  const { exitGuestMode } = useAuth();
+  const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    migrateGuestData(session)
+      .then(() => {
+        if (!cancelled) exitGuestMode();
+      })
+      .catch((e) => {
+        if (!cancelled) setError(e);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [session, exitGuestMode, attempt]);
+
+  if (error) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '1rem',
+          background: C.cream,
+          padding: '0 1.5rem',
+          textAlign: 'center',
+        }}
+      >
+        <p style={{ color: C.ink, fontFamily: F.sans }}>
+          We couldn't move your local data to your new account. Your data is safe on this device — try again.
+        </p>
+        <button
+          onClick={() => {
+            setError(null);
+            setAttempt((a) => a + 1);
+          }}
+          style={{
+            background: C.ink,
+            color: C.paper,
+            border: 'none',
+            borderRadius: '10px',
+            padding: '0.6rem 1.2rem',
+            fontFamily: F.sans,
+            cursor: 'pointer',
+          }}
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  return <LoadingScreen />;
 }
 
 function AppRouter({ pathname }) {
@@ -45,7 +121,7 @@ function AppRouter({ pathname }) {
 }
 
 export default function App() {
-  const { session, loading } = useAuth();
+  const { session, guestMode, loading } = useAuth();
   const pathname = useRoute();
 
   // The password-recovery link establishes a Supabase session on load, so this
@@ -55,15 +131,21 @@ export default function App() {
   }
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.cream }}>
-        <p style={{ color: C.slate, fontFamily: F.sans }}>Loading…</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
-  if (!session) {
+  // A guest can always reach the auth screens (e.g. to upgrade to Pro), even
+  // though they otherwise skip the sign-in gate below.
+  if (!session && AUTH_PATHS.has(pathname)) {
     return <AuthRouter pathname={pathname} />;
+  }
+
+  if (!session && !guestMode) {
+    return <AuthRouter pathname={pathname} />;
+  }
+
+  if (session && guestMode) {
+    return <GuestMigrationGate session={session} />;
   }
 
   return (
@@ -79,11 +161,7 @@ function AuthedApp({ session, pathname }) {
   const { profile, loading } = useProfile();
 
   if (loading) {
-    return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.cream }}>
-        <p style={{ color: C.slate, fontFamily: F.sans }}>Loading…</p>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (profile && !profile.onboarding_completed_at) {
@@ -92,7 +170,7 @@ function AuthedApp({ session, pathname }) {
 
   return (
     <AppShell>
-      {!session.user.email_confirmed_at && (
+      {session && !session.user.email_confirmed_at && (
         <div
           style={{
             background: C.warn,
