@@ -295,8 +295,9 @@ function CategoryBreakdownCard({ breakdown }) {
               <Tooltip formatter={(cents) => formatRands(cents)} />
             </RPieChart>
           </div>
-          {breakdown.map(({ category, cents }) => (
+          {breakdown.map(({ category, cents }, i) => (
             <div key={category} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+              <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
               <CategoryIcon category={category} direction="expense" size={14} />
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
@@ -304,7 +305,7 @@ function CategoryBreakdownCard({ breakdown }) {
                   <span style={{ color: C.slate, fontSize: '0.85rem' }}>{formatRands(cents)}</span>
                 </div>
                 <div style={{ height: '6px', borderRadius: '4px', background: C.cream, overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: C.sage, borderRadius: '4px' }} />
+                  <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: CHART_COLORS[i % CHART_COLORS.length], borderRadius: '4px' }} />
                 </div>
               </div>
             </div>

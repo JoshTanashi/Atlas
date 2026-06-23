@@ -8,7 +8,9 @@ import { Button } from '../components/ui/Button.jsx';
 import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
 import { StatTile } from '../components/ui/StatTile.jsx';
 import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
+import { InfoSheet } from '../components/ui/InfoSheet.jsx';
 import { ProPlansModal } from '../components/pro/ProPlansModal.jsx';
+import { WelcomeBanner } from '../components/dashboard/WelcomeBanner.jsx';
 import { formatRands } from '../lib/money.js';
 import { navigate } from '../lib/nav.js';
 import { useEvents } from '../hooks/useEvents.jsx';
@@ -32,6 +34,7 @@ export function DashboardScreen() {
   const { profile, loading: profileLoading } = useProfile();
   const [insight, setInsight] = useState(null);
   const [proModalOpen, setProModalOpen] = useState(false);
+  const [infoSheet, setInfoSheet] = useState(null); // null | 'runway' | 'essentialRunway'
 
   useEffect(() => {
     if (!profile?.is_pro) return;
@@ -70,6 +73,8 @@ export function DashboardScreen() {
   return (
     <div>
       <ScreenHeader title="This Month" showSearch />
+
+      <WelcomeBanner name={profile?.display_name} />
 
       <Card style={{ marginBottom: '1rem' }}>
         <span className="label">Spent</span>
@@ -125,6 +130,7 @@ export function DashboardScreen() {
               label="Runway"
               value={`${runway.months.toFixed(1)} mo`}
               helper={runway.estimated ? 'Estimate — limited history' : 'At your current spending'}
+              onInfoClick={() => setInfoSheet('runway')}
             />
           )}
           {essentialRunway && (
@@ -133,6 +139,7 @@ export function DashboardScreen() {
               label="Essential runway"
               value={`${essentialRunway.months.toFixed(1)} mo`}
               helper={essentialRunway.estimated ? 'Estimate — limited history' : 'Covering bare essentials only'}
+              onInfoClick={() => setInfoSheet('essentialRunway')}
             />
           )}
         </div>
@@ -180,6 +187,29 @@ export function DashboardScreen() {
       <AnimatePresence>
         {proModalOpen && (
           <ProPlansModal onClose={() => setProModalOpen(false)} session={session} profile={profile} />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {infoSheet === 'runway' && (
+          <InfoSheet icon={Hourglass} title="What is Runway?" onClose={() => setInfoSheet(null)}>
+            <p style={{ marginBottom: '0.75rem' }}>
+              Runway estimates how many months your liquid savings — checking and savings accounts — would last if your income stopped completely. It's your liquid balance divided by your average monthly spending over the last few months.
+            </p>
+            <p>
+              A longer runway means more breathing room to handle a job loss, a medical bill, or a slow month without reaching for debt. Most financial guides suggest aiming for 3–6 months as a baseline emergency fund.
+            </p>
+          </InfoSheet>
+        )}
+        {infoSheet === 'essentialRunway' && (
+          <InfoSheet icon={Hourglass} title="What is Essential Runway?" onClose={() => setInfoSheet(null)}>
+            <p style={{ marginBottom: '0.75rem' }}>
+              Essential runway is the same calculation, but it only counts the categories you've marked essential in Settings — things like groceries, transport, and health — instead of your full spending.
+            </p>
+            <p>
+              It answers a more specific question: how long could you survive on the bare necessities alone? This is usually longer than your full runway, and it's a more realistic worst-case number if you'd cut discretionary spending right away after losing income.
+            </p>
+          </InfoSheet>
         )}
       </AnimatePresence>
     </div>
