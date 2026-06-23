@@ -6,6 +6,7 @@ import { useAuth } from './useAuth.jsx';
 export function useBaseline() {
   const { session, guestMode } = useAuth();
   const [income, setIncome] = useState(null);
+  const [budget, setBudget] = useState(null);
   const [accounts, setAccounts] = useState([]);
   const [debts, setDebts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,12 +14,14 @@ export function useBaseline() {
   const refresh = useCallback(async () => {
     if (!session && !guestMode) return;
 
-    const [cachedIncome, cachedAccounts, cachedDebts] = await Promise.all([
+    const [cachedIncome, cachedBudget, cachedAccounts, cachedDebts] = await Promise.all([
       getAll('income'),
+      getAll('budget'),
       getAll('accounts'),
       getAll('debts'),
     ]);
     if (cachedIncome.length) setIncome(cachedIncome[0]);
+    if (cachedBudget.length) setBudget(cachedBudget[0]);
     setAccounts(cachedAccounts);
     setDebts(cachedDebts);
     setLoading(false);
@@ -28,8 +31,9 @@ export function useBaseline() {
       return;
     }
 
-    const [incomeRes, accountsRes, debtsRes] = await Promise.all([
+    const [incomeRes, budgetRes, accountsRes, debtsRes] = await Promise.all([
       supabase.from('baseline_income').select('*').maybeSingle(),
+      supabase.from('baseline_budget').select('*').maybeSingle(),
       supabase.from('baseline_accounts').select('*'),
       supabase.from('baseline_debts').select('*'),
     ]);
@@ -38,6 +42,11 @@ export function useBaseline() {
       const row = incomeRes.data ? { id: 'income', ...incomeRes.data } : null;
       setIncome(row);
       await replaceAll('income', row ? [row] : []);
+    }
+    if (!budgetRes.error) {
+      const row = budgetRes.data ? { id: 'budget', ...budgetRes.data } : null;
+      setBudget(row);
+      await replaceAll('budget', row ? [row] : []);
     }
     if (!accountsRes.error && accountsRes.data) {
       setAccounts(accountsRes.data);
@@ -63,6 +72,20 @@ export function useBaseline() {
     const { error } = await supabase
       .from('baseline_income')
       .upsert({ user_id: session.user.id, monthly_income_cents: monthlyIncomeCents, ...extra, updated_at: new Date().toISOString() });
+    if (error) throw error;
+    await refresh();
+  }
+
+  async function setMonthlyBudget(monthlyBudgetCents, extra = {}) {
+    if (!session) {
+      await put('budget', { id: 'budget', monthly_budget_cents: monthlyBudgetCents, ...extra, updated_at: new Date().toISOString() });
+      await refresh();
+      return;
+    }
+    if (!navigator.onLine) throw new Error('OFFLINE');
+    const { error } = await supabase
+      .from('baseline_budget')
+      .upsert({ user_id: session.user.id, monthly_budget_cents: monthlyBudgetCents, ...extra, updated_at: new Date().toISOString() });
     if (error) throw error;
     await refresh();
   }
@@ -117,5 +140,5 @@ export function useBaseline() {
     await refresh();
   }
 
-  return { income, accounts, debts, loading, setMonthlyIncome, upsertAccount, deleteAccount, upsertDebt, deleteDebt, refresh };
+  return { income, budget, accounts, debts, loading, setMonthlyIncome, setMonthlyBudget, upsertAccount, deleteAccount, upsertDebt, deleteDebt, refresh };
 }

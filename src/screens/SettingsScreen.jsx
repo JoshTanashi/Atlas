@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   User, Crown, Lock, MessageSquare, Info, LogOut, Trash2, Sun, Check,
-  Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, Banknote,
+  Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, Banknote, Target,
 } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
@@ -45,7 +45,7 @@ function CardHeader({ icon, label }) {
 export function SettingsScreen() {
   const { session, signOut } = useAuth();
   const { profile, updateDisplayName } = useProfile();
-  const { income, accounts, debts, setMonthlyIncome, upsertAccount, deleteAccount, upsertDebt, deleteDebt } = useBaseline();
+  const { income, budget, accounts, debts, setMonthlyIncome, setMonthlyBudget, upsertAccount, deleteAccount, upsertDebt, deleteDebt } = useBaseline();
   const { events } = useEvents();
 
   function describeBaselineError(e) {
@@ -94,9 +94,11 @@ export function SettingsScreen() {
       <SectionLabel>Money</SectionLabel>
       <MoneySection
         income={income}
+        budget={budget}
         accounts={accounts}
         debts={debts}
         setMonthlyIncome={setMonthlyIncome}
+        setMonthlyBudget={setMonthlyBudget}
         upsertAccount={upsertAccount}
         deleteAccount={deleteAccount}
         upsertDebt={upsertDebt}
@@ -400,9 +402,11 @@ function AppearanceCard() {
   );
 }
 
-function MoneySection({ income, accounts, debts, setMonthlyIncome, upsertAccount, deleteAccount, upsertDebt, deleteDebt, describeBaselineError }) {
+function MoneySection({ income, budget, accounts, debts, setMonthlyIncome, setMonthlyBudget, upsertAccount, deleteAccount, upsertDebt, deleteDebt, describeBaselineError }) {
   const [incomeInput, setIncomeInput] = useState('');
   const [incomeError, setIncomeError] = useState(null);
+  const [budgetInput, setBudgetInput] = useState('');
+  const [budgetError, setBudgetError] = useState(null);
   const [accountsError, setAccountsError] = useState(null);
   const [debtsError, setDebtsError] = useState(null);
 
@@ -414,6 +418,17 @@ function MoneySection({ income, accounts, debts, setMonthlyIncome, upsertAccount
       setIncomeInput('');
     } catch (e) {
       setIncomeError(describeBaselineError(e));
+    }
+  }
+
+  async function handleSaveBudget() {
+    if (!budgetInput) return;
+    setBudgetError(null);
+    try {
+      await setMonthlyBudget(randsToCents(Number(budgetInput)));
+      setBudgetInput('');
+    } catch (e) {
+      setBudgetError(describeBaselineError(e));
     }
   }
 
@@ -472,6 +487,25 @@ function MoneySection({ income, accounts, debts, setMonthlyIncome, upsertAccount
           </Button>
         </div>
         {incomeError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{incomeError}</p>}
+      </Card>
+
+      <Card style={{ marginBottom: '1rem' }}>
+        <CardHeader icon={Target} label="Monthly budget" />
+        <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+          {budget ? `Currently ${formatRands(budget.monthly_budget_cents)}/month` : 'Not set — unlocks a spending cap and progress bar.'}
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <Input
+            type="number"
+            value={budgetInput}
+            onChange={(e) => setBudgetInput(e.target.value)}
+            placeholder={budget ? centsToRands(budget.monthly_budget_cents).toString() : 'R per month'}
+          />
+          <Button style={{ height: 'fit-content' }} onClick={handleSaveBudget}>
+            Save
+          </Button>
+        </div>
+        {budgetError && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{budgetError}</p>}
       </Card>
 
       <BaselineListCard

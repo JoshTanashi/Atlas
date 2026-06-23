@@ -8,8 +8,9 @@ import { loadGuestProfile, clearGuestProfile } from './guestStore.js';
 export async function migrateGuestData(session) {
   const userId = session.user.id;
 
-  const [income, accounts, debts, goals, recurringExpenses, corrections, events] = await Promise.all([
+  const [income, budget, accounts, debts, goals, recurringExpenses, corrections, events] = await Promise.all([
     getAll('income'),
+    getAll('budget'),
     getAll('accounts'),
     getAll('debts'),
     getAll('goals'),
@@ -22,6 +23,13 @@ export async function migrateGuestData(session) {
     const { id, ...incomeFields } = income[0]; // baseline_income has no `id` column — strip the synthetic idb key
     void id;
     const { error } = await supabase.from('baseline_income').upsert({ ...incomeFields, user_id: userId });
+    if (error) throw error;
+  }
+
+  if (budget.length) {
+    const { id, ...budgetFields } = budget[0]; // baseline_budget has no `id` column — strip the synthetic idb key
+    void id;
+    const { error } = await supabase.from('baseline_budget').upsert({ ...budgetFields, user_id: userId });
     if (error) throw error;
   }
 

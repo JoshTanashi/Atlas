@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, Sparkles, Crown, PieChart } from 'lucide-react';
+import { PieChart as RPieChart, Pie, Cell, Tooltip } from 'recharts';
+import { TrendingUp, Sparkles, Crown, PieChart, Target, Banknote, PiggyBank, CreditCard } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
 import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
+import { StatTile } from '../components/ui/StatTile.jsx';
 import { formatRands } from '../lib/money.js';
 import { useEvents } from '../hooks/useEvents.jsx';
+import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { trailingMonthlyExpenseTotals, categoryBreakdown } from '../lib/aggregates.js';
+import { trailingMonthlyExpenseTotals, categoryBreakdown, monthTotals } from '../lib/aggregates.js';
 import { forecastNextMonthCents } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { navigate, replaceRoute } from '../lib/nav.js';
@@ -21,9 +24,12 @@ const SAMPLE_BREAKDOWN = [
   { category: 'subscriptions', cents: 42000 },
 ];
 
+const CHART_COLORS = ['#5B7B6F', '#B0734A', '#C58A3D', '#A8534A', '#3E5950', '#8C9A8A'];
+
 export function InsightsScreen() {
   const { session } = useAuth();
   const { events, loading: eventsLoading } = useEvents();
+  const { income, budget, debts, loading: baselineLoading } = useBaseline();
   const { profile, loading: profileLoading, refresh: refreshProfile } = useProfile();
 
   const [checkoutError, setCheckoutError] = useState(null);
@@ -96,7 +102,9 @@ export function InsightsScreen() {
     }
   }
 
-  if (eventsLoading || profileLoading) return <p style={{ color: C.slate }}>Loading…</p>;
+  if (eventsLoading || profileLoading || baselineLoading) return <p style={{ color: C.slate }}>Loading…</p>;
+
+  const { expenseCents, incomeCents } = monthTotals(events);
 
   if (!profile?.is_pro) {
     return (
@@ -107,6 +115,8 @@ export function InsightsScreen() {
             <p style={{ color: C.slate, fontSize: '0.9rem' }}>Confirming your subscription…</p>
           </Card>
         )}
+        <OverviewCard budget={budget} income={income} debts={debts} expenseCents={expenseCents} incomeCents={incomeCents} />
+        <div style={{ height: '1rem' }} />
         <div style={{ position: 'relative' }}>
           <div style={{ filter: 'blur(5px)', opacity: 0.55, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
             <ForecastCard forecastCents={148000} />
@@ -154,12 +164,72 @@ export function InsightsScreen() {
   return (
     <div>
       <ScreenHeader title="Insights" />
+      <OverviewCard budget={budget} income={income} debts={debts} expenseCents={expenseCents} incomeCents={incomeCents} />
+      <div style={{ height: '1rem' }} />
       <ForecastCard forecastCents={forecastCents} />
       <div style={{ height: '1rem' }} />
       <CategoryBreakdownCard breakdown={breakdown} />
       <div style={{ height: '1rem' }} />
       <AiInsightCard insight={insight} loading={insightLoading} error={insightError} onGenerate={handleGenerateInsight} />
     </div>
+  );
+}
+
+function OverviewCard({ budget, income, debts, expenseCents, incomeCents }) {
+  const hasBudget = Boolean(budget?.monthly_budget_cents);
+  const effectiveIncomeCents = income?.monthly_income_cents ?? incomeCents;
+  const savingsCents = effectiveIncomeCents - expenseCents;
+  const debtCents = debts.reduce((sum, d) => sum + d.balance_cents, 0);
+  const budgetPct = hasBudget ? Math.min(1, expenseCents / budget.monthly_budget_cents) : null;
+
+  return (
+    <>
+      <Card style={{ marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '2rem', height: '2rem', borderRadius: '50%', background: C.cream }}>
+            <Target size={16} strokeWidth={2} color={C.sageDeep} />
+          </span>
+          <span className="label">Monthly budget</span>
+        </div>
+        {hasBudget ? (
+          <>
+            <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>
+              {formatRands(expenseCents)} <span style={{ fontSize: '1rem', color: C.slate, fontFamily: F.sans }}>of {formatRands(budget.monthly_budget_cents)}</span>
+            </p>
+            <div style={{ height: '8px', background: C.line, borderRadius: '4px', overflow: 'hidden', marginTop: '0.6rem' }}>
+              <div
+                style={{
+                  height: '100%',
+                  width: `${budgetPct * 100}%`,
+                  background: budgetPct >= 1 ? C.over : C.sage,
+                  transition: 'width 0.2s ease',
+                }}
+              />
+            </div>
+            <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.4rem' }}>
+              {(budgetPct * 100).toFixed(0)}% of budget spent this month.
+            </p>
+          </>
+        ) : (
+          <p style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.4rem' }}>
+            Set a monthly budget in Settings to track your spending against a cap.
+          </p>
+        )}
+      </Card>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+        <StatTile icon={Banknote} label="Income" value={formatRands(effectiveIncomeCents)} helper="This month" />
+        <StatTile icon={CreditCard} label="Expenses" value={formatRands(expenseCents)} helper="This month" />
+        <StatTile
+          icon={PiggyBank}
+          label="Savings"
+          value={formatRands(savingsCents)}
+          valueColor={savingsCents < 0 ? C.over : C.sageDeep}
+          helper="Income minus expenses"
+        />
+        <StatTile icon={CreditCard} label="Total debt" value={formatRands(debtCents)} helper={`${debts.length} debt${debts.length === 1 ? '' : 's'}`} />
+      </div>
+    </>
   );
 }
 
@@ -202,20 +272,32 @@ function CategoryBreakdownCard({ breakdown }) {
       {total === 0 ? (
         <p style={{ color: C.slate, fontSize: '0.9rem' }}>No expenses logged this month yet.</p>
       ) : (
-        breakdown.map(({ category, cents }) => (
-          <div key={category} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
-            <CategoryIcon category={category} direction="expense" size={14} />
-            <div style={{ flex: 1 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                <span style={{ color: C.ink, fontSize: '0.85rem', textTransform: 'capitalize' }}>{category.replace('_', ' ')}</span>
-                <span style={{ color: C.slate, fontSize: '0.85rem' }}>{formatRands(cents)}</span>
-              </div>
-              <div style={{ height: '6px', borderRadius: '4px', background: C.cream, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: C.sage, borderRadius: '4px' }} />
+        <>
+          <div style={{ width: '100%', height: 200, marginBottom: '0.6rem' }}>
+            <RPieChart width={260} height={200} style={{ margin: '0 auto', display: 'block' }}>
+              <Pie data={breakdown} dataKey="cents" nameKey="category" innerRadius={45} outerRadius={75} paddingAngle={2}>
+                {breakdown.map((entry, i) => (
+                  <Cell key={entry.category} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(cents) => formatRands(cents)} />
+            </RPieChart>
+          </div>
+          {breakdown.map(({ category, cents }) => (
+            <div key={category} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.6rem' }}>
+              <CategoryIcon category={category} direction="expense" size={14} />
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                  <span style={{ color: C.ink, fontSize: '0.85rem', textTransform: 'capitalize' }}>{category.replace('_', ' ')}</span>
+                  <span style={{ color: C.slate, fontSize: '0.85rem' }}>{formatRands(cents)}</span>
+                </div>
+                <div style={{ height: '6px', borderRadius: '4px', background: C.cream, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${Math.max(4, (cents / total) * 100)}%`, background: C.sage, borderRadius: '4px' }} />
+                </div>
               </div>
             </div>
-          </div>
-        ))
+          ))}
+        </>
       )}
     </Card>
   );
