@@ -15,7 +15,7 @@ import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { monthTotals, trailingMonthlyExpenseAverage, essentialMonthlyExpenseAverage, categoryBreakdown } from '../lib/aggregates.js';
+import { monthTotals, trailingMonthlyExpenseAverage, essentialMonthlyExpenseAverage, trailingSavingsRateAverage, categoryBreakdown } from '../lib/aggregates.js';
 import { savingsRate, netWorth, runwayMonths } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
 
@@ -48,6 +48,7 @@ export function DashboardScreen() {
   const hasIncome = Boolean(income?.monthly_income_cents);
   const hasAccounts = accounts.length > 0;
   const rate = hasIncome ? savingsRate(income.monthly_income_cents, expenseCents) : null;
+  const trailingRate = hasIncome ? trailingSavingsRateAverage(events, income.monthly_income_cents) : null;
   const worth = hasAccounts ? netWorth(accounts, debts) : null;
   const spendOfIncomePct = hasIncome ? Math.min(1, expenseCents / income.monthly_income_cents) : null;
 
@@ -104,7 +105,10 @@ export function DashboardScreen() {
               label="Savings rate"
               value={`${(rate * 100).toFixed(0)}%`}
               valueColor={rate < 0 ? C.over : C.sageDeep}
-              helper={rate >= 0 ? `Keeping R${(rate * 100).toFixed(0)} of every R100 earned` : 'Spending more than you earn'}
+              helper={
+                (rate >= 0 ? `Keeping R${(rate * 100).toFixed(0)} of every R100 earned` : 'Spending more than you earn') +
+                (trailingRate !== null ? ` · 3-mo avg ${(trailingRate * 100).toFixed(0)}%` : '')
+              }
             />
           )}
           {hasAccounts && (
