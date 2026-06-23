@@ -9,6 +9,7 @@ import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
 import { CategoryIcon } from '../components/ui/CategoryIcon.jsx';
 import { StatTile } from '../components/ui/StatTile.jsx';
 import { ProPlansModal } from '../components/pro/ProPlansModal.jsx';
+import { WelcomeToProTutorial } from './onboarding/WelcomeToProTutorial.jsx';
 import { formatRands } from '../lib/money.js';
 import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
@@ -35,6 +36,8 @@ export function InsightsScreen() {
   const { profile, loading: profileLoading, refresh: refreshProfile } = useProfile();
 
   const [confirmingCheckout, setConfirmingCheckout] = useState(false);
+  const [awaitingUpgrade, setAwaitingUpgrade] = useState(false);
+  const [showProTutorial, setShowProTutorial] = useState(false);
   const [proModalOpen, setProModalOpen] = useState(false);
 
   const [insight, setInsight] = useState(null);
@@ -48,6 +51,7 @@ export function InsightsScreen() {
     if (params.get('checkout') !== 'success') return;
     replaceRoute('/insights');
     setConfirmingCheckout(true);
+    setAwaitingUpgrade(true);
     let attempts = 0;
     const interval = setInterval(async () => {
       attempts += 1;
@@ -58,8 +62,13 @@ export function InsightsScreen() {
   }, [refreshProfile]);
 
   useEffect(() => {
-    if (profile?.is_pro) setConfirmingCheckout(false);
-  }, [profile?.is_pro]);
+    if (!profile?.is_pro) return;
+    setConfirmingCheckout(false);
+    if (awaitingUpgrade) {
+      setAwaitingUpgrade(false);
+      setShowProTutorial(true);
+    }
+  }, [profile?.is_pro, awaitingUpgrade]);
 
   useEffect(() => {
     if (!profile?.is_pro) return;
@@ -149,6 +158,7 @@ export function InsightsScreen() {
       <CategoryBreakdownCard breakdown={breakdown} />
       <div style={{ height: '1rem' }} />
       <AiInsightCard insight={insight} loading={insightLoading} error={insightError} onGenerate={handleGenerateInsight} />
+      {showProTutorial && <WelcomeToProTutorial onFinish={() => setShowProTutorial(false)} />}
     </div>
   );
 }
