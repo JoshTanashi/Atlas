@@ -24,18 +24,39 @@ function monthsBetween(today, targetDate) {
   return Math.max(1, months);
 }
 
+// Approximates a goal's recent monthly saving pace from its own history (total saved so far
+// over time since creation) -- Atlas doesn't log a separate contribution timeline. Floored at
+// 1 month so a same-day goal doesn't divide by zero. Feeds goalProjection's optional
+// recentMonthlyContributionCents input.
+export function recentContributionPace(savedCents, createdAt, today = new Date()) {
+  const monthsSinceCreated = Math.max(1, (today.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24 * 30));
+  return Math.round(savedCents / monthsSinceCreated);
+}
+
 // goal: { target_cents, saved_cents, target_date?: Date, monthly_contribution_cents?: number }
+// recentMonthlyContributionCents (optional): the goal's actual recent saving pace, used only
+// in target_date mode to flag whether the stated target is realistic given real behavior.
 // Returns one of:
-//   { mode: 'target_date', requiredMonthlyCents, monthsRemaining }
+//   { mode: 'target_date', requiredMonthlyCents, monthsRemaining, onTrack?, paceMonthsToGoal?, paceProjectedDate? }
 //   { mode: 'contribution', monthsToGoal, projectedDate }
 //   { mode: 'none' }  -- neither field set (or contribution is <= 0), honest empty state
-export function goalProjection(goal, today = new Date()) {
+export function goalProjection(goal, today = new Date(), recentMonthlyContributionCents = null) {
   const remainingCents = goal.target_cents - goal.saved_cents;
 
   if (goal.target_date) {
     const monthsRemaining = monthsBetween(today, goal.target_date);
     const requiredMonthlyCents = Math.ceil(remainingCents / monthsRemaining);
-    return { mode: 'target_date', requiredMonthlyCents, monthsRemaining };
+    const result = { mode: 'target_date', requiredMonthlyCents, monthsRemaining };
+
+    if (recentMonthlyContributionCents !== null) {
+      result.onTrack = recentMonthlyContributionCents >= requiredMonthlyCents;
+      if (recentMonthlyContributionCents > 0) {
+        result.paceMonthsToGoal = Math.max(0, Math.ceil(remainingCents / recentMonthlyContributionCents));
+        result.paceProjectedDate = new Date(today.getFullYear(), today.getMonth() + result.paceMonthsToGoal, today.getDate());
+      }
+    }
+
+    return result;
   }
 
   if (goal.monthly_contribution_cents && goal.monthly_contribution_cents > 0) {
@@ -73,25 +94,94 @@ export function debtAmortization(debt) {
   return { amortizing: true, months, totalInterestCents };
 }
 
-// trailingMonthlyCents: totals (oldest first) for however many recent months are available.
-// Fits a simple linear trend through them and projects one month forward.
+// debts: array of debts that already have monthly_payment_cents set (filter before calling).
+// strategy: 'avalanche' (highest APR first) or 'snowball' (smallest balance first). Simulates
+// month-by-month, accruing interest then allocating the combined monthly budget (sum of every
+// debt's monthly_payment_cents) in priority order, so a paid-off debt's payment automatically
+// rolls into the next-priority debt. Returns one of:
+//   { amortizing: false }  -- budget can't clear all debts within maxMonths
+//   { amortizing: true, months, totalInterestCents, order }  -- order is payoff sequence (debt ids)
+export function debtPayoffPlan(debts, strategy, maxMonths = 600) {
+  const totalBudgetCents = debts.reduce((sum, d) => sum + (d.monthly_payment_cents || 0), 0);
+  if (totalBudgetCents <= 0 || debts.length === 0) return { amortizing: false };
+
+  let states = debts.map((d, i) => ({
+    id: d.id ?? i,
+    balanceCents: d.balance_cents,
+    monthlyRate: d.apr / 12 / 100,
+    apr: d.apr,
+  }));
+
+  let totalInterestCents = 0;
+  const order = [];
+
+  for (let month = 1; month <= maxMonths; month++) {
+    for (const s of states) {
+      const interest = s.balanceCents * s.monthlyRate;
+      s.balanceCents += interest;
+      totalInterestCents += interest;
+    }
+
+    const sorted = [...states].sort((a, b) =>
+      strategy === 'avalanche' ? b.apr - a.apr : a.balanceCents - b.balanceCents
+    );
+
+    let budget = totalBudgetCents;
+    for (const s of sorted) {
+      const pay = Math.min(budget, s.balanceCents);
+      s.balanceCents -= pay;
+      budget -= pay;
+    }
+
+    for (const s of states) {
+      if (s.balanceCents <= 0) order.push(s.id);
+    }
+    states = states.filter((s) => s.balanceCents > 0);
+
+    if (states.length === 0) {
+      return { amortizing: true, months: month, totalInterestCents: Math.round(totalInterestCents), order };
+    }
+  }
+
+  return { amortizing: false };
+}
+
+// variableTrailingCents: totals (oldest first) for however many recent months are available,
+// with known recurring bills already subtracted by the caller (see aggregates.js
+// trailingVariableExpenseTotals) -- this fits a trend through the unpredictable portion only.
+// Uses Theil-Sen (median of pairwise slopes) instead of OLS so a single outlier month doesn't
+// skew the whole trend, and reports a band from the largest residual rather than a bare point.
 // Returns null with no data (honest empty state); a single month just passes through (no trend to fit).
-export function forecastNextMonthCents(trailingMonthlyCents) {
-  const n = trailingMonthlyCents.length;
+export function forecastNextMonth(variableTrailingCents) {
+  const n = variableTrailingCents.length;
   if (n === 0) return null;
-  if (n === 1) return trailingMonthlyCents[0];
+  if (n === 1) {
+    const v = variableTrailingCents[0];
+    return { expectedCents: v, lowCents: v, highCents: v };
+  }
 
-  const xMean = (n - 1) / 2;
-  const yMean = trailingMonthlyCents.reduce((sum, v) => sum + v, 0) / n;
+  const median = (values) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  };
 
-  let numerator = 0;
-  let denominator = 0;
-  trailingMonthlyCents.forEach((y, x) => {
-    numerator += (x - xMean) * (y - yMean);
-    denominator += (x - xMean) ** 2;
-  });
+  const slopes = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      slopes.push((variableTrailingCents[j] - variableTrailingCents[i]) / (j - i));
+    }
+  }
+  const slope = median(slopes);
+  const intercept = median(variableTrailingCents.map((y, x) => y - slope * x));
 
-  const slope = denominator === 0 ? 0 : numerator / denominator;
-  const intercept = yMean - slope * xMean;
-  return Math.round(intercept + slope * n);
+  const residuals = variableTrailingCents.map((y, x) => Math.abs(y - (intercept + slope * x)));
+  const band = Math.round(Math.max(...residuals));
+  const expectedCents = Math.round(intercept + slope * n);
+
+  return {
+    expectedCents,
+    lowCents: Math.max(0, expectedCents - band),
+    highCents: expectedCents + band,
+  };
 }

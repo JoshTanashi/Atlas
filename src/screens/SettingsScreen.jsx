@@ -14,7 +14,7 @@ import { ProPlansModal } from '../components/pro/ProPlansModal.jsx';
 import { friendlyAuthError } from '../lib/authError.js';
 import { navigate } from '../lib/nav.js';
 import { formatRands, randsToCents, centsToRands } from '../lib/money.js';
-import { debtAmortization } from '../lib/formulas.js';
+import { debtAmortization, debtPayoffPlan } from '../lib/formulas.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useEvents } from '../hooks/useEvents.jsx';
@@ -554,6 +554,7 @@ function DebtsPanel({ debts, upsertDebt, deleteDebt, describeBaselineError }) {
           </div>
         );
       })}
+      <DebtPayoffPlanCard debts={debts} />
       {adding && (
         <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: `1px solid ${C.line}` }}>
           <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
@@ -566,6 +567,41 @@ function DebtsPanel({ debts, upsertDebt, deleteDebt, describeBaselineError }) {
         </div>
       )}
       {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.5rem' }}>{error}</p>}
+    </div>
+  );
+}
+
+function DebtPayoffPlanCard({ debts }) {
+  const payable = debts.filter((d) => d.monthly_payment_cents > 0);
+  if (payable.length < 2) return null;
+
+  const avalanche = debtPayoffPlan(payable, 'avalanche');
+  const snowball = debtPayoffPlan(payable, 'snowball');
+
+  return (
+    <div style={{ marginTop: '0.75rem', paddingTop: '0.75rem', borderTop: `1px solid ${C.line}` }}>
+      <span className="label">Payoff plan</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem', marginTop: '0.4rem' }}>
+        <div>
+          <p style={{ color: C.ink, fontSize: '0.85rem', fontWeight: 600 }}>Highest-interest first</p>
+          <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.2rem' }}>
+            {avalanche.amortizing
+              ? `${avalanche.months} months, ~${formatRands(avalanche.totalInterestCents)} interest`
+              : "Won't clear at this combined payment"}
+          </p>
+        </div>
+        <div>
+          <p style={{ color: C.ink, fontSize: '0.85rem', fontWeight: 600 }}>Smallest balance first</p>
+          <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.2rem' }}>
+            {snowball.amortizing
+              ? `${snowball.months} months, ~${formatRands(snowball.totalInterestCents)} interest`
+              : "Won't clear at this combined payment"}
+          </p>
+        </div>
+      </div>
+      <p style={{ color: C.slate, fontSize: '0.75rem', marginTop: '0.4rem' }}>
+        Both put your combined payment toward one debt at a time, then roll it into the next once paid off. Highest-interest-first usually costs less overall.
+      </p>
     </div>
   );
 }

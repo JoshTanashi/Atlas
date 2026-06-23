@@ -6,7 +6,7 @@ import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input } from '../components/ui/Input.jsx';
 import { formatRands, randsToCents } from '../lib/money.js';
-import { goalProjection } from '../lib/formulas.js';
+import { goalProjection, recentContributionPace } from '../lib/formulas.js';
 import { navigate } from '../lib/nav.js';
 import { useGoals } from '../hooks/useGoals.js';
 
@@ -23,12 +23,18 @@ export function GoalDetailScreen({ goalId }) {
   const goal = goals.find((g) => g.id === goalId);
   if (!goal) return <EmptyState title="Goal not found" body="It may have been deleted." />;
 
-  const projection = goalProjection({
-    target_cents: goal.target_cents,
-    saved_cents: goal.saved_cents,
-    target_date: goal.target_date ? new Date(goal.target_date) : null,
-    monthly_contribution_cents: goal.monthly_contribution_cents,
-  });
+  const recentMonthlyContributionCents = recentContributionPace(goal.saved_cents, new Date(goal.created_at));
+
+  const projection = goalProjection(
+    {
+      target_cents: goal.target_cents,
+      saved_cents: goal.saved_cents,
+      target_date: goal.target_date ? new Date(goal.target_date) : null,
+      monthly_contribution_cents: goal.monthly_contribution_cents,
+    },
+    new Date(),
+    recentMonthlyContributionCents
+  );
 
   function describeActionError(e) {
     return e.message === 'OFFLINE' ? "You're offline — connect to update this goal." : 'Could not update goal. Please try again.';
@@ -91,9 +97,21 @@ export function GoalDetailScreen({ goalId }) {
         </p>
 
         {projection.mode === 'target_date' && (
-          <p style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.5rem' }}>
-            You need {formatRands(projection.requiredMonthlyCents)}/month for {projection.monthsRemaining} months to hit your target date.
-          </p>
+          <>
+            <p style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.5rem' }}>
+              You need {formatRands(projection.requiredMonthlyCents)}/month for {projection.monthsRemaining} months to hit your target date.
+            </p>
+            {projection.onTrack === true && (
+              <p style={{ color: C.sageDeep, fontSize: '0.85rem', marginTop: '0.3rem' }}>
+                Your recent saving pace is on track to meet this.
+              </p>
+            )}
+            {projection.onTrack === false && projection.paceProjectedDate && (
+              <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.3rem' }}>
+                At your recent pace, you'd actually reach this around {projection.paceProjectedDate.toLocaleDateString('en-ZA', { month: 'long', year: 'numeric' })} — behind your target date.
+              </p>
+            )}
+          </>
         )}
         {projection.mode === 'contribution' && (
           <p style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.5rem' }}>

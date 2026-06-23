@@ -15,7 +15,7 @@ import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { monthTotals, trailingMonthlyExpenseAverage, categoryBreakdown } from '../lib/aggregates.js';
+import { monthTotals, trailingMonthlyExpenseAverage, essentialMonthlyExpenseAverage, categoryBreakdown } from '../lib/aggregates.js';
 import { savingsRate, netWorth, runwayMonths } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
 
@@ -52,6 +52,7 @@ export function DashboardScreen() {
   const spendOfIncomePct = hasIncome ? Math.min(1, expenseCents / income.monthly_income_cents) : null;
 
   let runway = null;
+  let essentialRunway = null;
   if (hasAccounts) {
     const liquid = accounts
       .filter((a) => a.kind === 'checking' || a.kind === 'savings')
@@ -59,6 +60,10 @@ export function DashboardScreen() {
     const { average, estimated } = trailingMonthlyExpenseAverage(events);
     const months = runwayMonths(liquid, average);
     runway = months === null ? null : { months, estimated };
+
+    const { average: essentialAverage, estimated: essentialEstimated } = essentialMonthlyExpenseAverage(events);
+    const essentialMonths = runwayMonths(liquid, essentialAverage);
+    essentialRunway = essentialMonths === null ? null : { months: essentialMonths, estimated: essentialEstimated };
   }
 
   return (
@@ -115,7 +120,15 @@ export function DashboardScreen() {
               icon={Hourglass}
               label="Runway"
               value={`${runway.months.toFixed(1)} mo`}
-              helper={runway.estimated ? 'Estimate — limited history' : 'At your current spend'}
+              helper={runway.estimated ? 'Estimate — limited history' : 'At your current spending'}
+            />
+          )}
+          {essentialRunway && (
+            <StatTile
+              icon={Hourglass}
+              label="Essential runway"
+              value={`${essentialRunway.months.toFixed(1)} mo`}
+              helper={essentialRunway.estimated ? 'Estimate — limited history' : 'Covering bare essentials only'}
             />
           )}
         </div>

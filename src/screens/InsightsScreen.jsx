@@ -15,8 +15,9 @@ import { useEvents } from '../hooks/useEvents.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useProfile } from '../hooks/useProfile.jsx';
 import { useAuth } from '../hooks/useAuth.jsx';
-import { trailingMonthlyExpenseTotals, categoryBreakdown, monthTotals, extrapolateMonthCents } from '../lib/aggregates.js';
-import { forecastNextMonthCents } from '../lib/formulas.js';
+import { useRecurringExpenses } from '../hooks/useRecurringExpenses.js';
+import { trailingVariableExpenseTotals, categoryBreakdown, monthTotals, extrapolateMonthCents } from '../lib/aggregates.js';
+import { forecastNextMonth } from '../lib/formulas.js';
 import { supabase } from '../lib/supabaseClient.js';
 import { replaceRoute } from '../lib/nav.js';
 
@@ -34,6 +35,7 @@ export function InsightsScreen() {
   const { events, loading: eventsLoading } = useEvents();
   const { income, budget, debts, loading: baselineLoading } = useBaseline();
   const { profile, loading: profileLoading, refresh: refreshProfile } = useProfile();
+  const { recurringExpenses, loading: recurringLoading } = useRecurringExpenses();
 
   const [confirmingCheckout, setConfirmingCheckout] = useState(false);
   const [awaitingUpgrade, setAwaitingUpgrade] = useState(false);
@@ -94,7 +96,7 @@ export function InsightsScreen() {
     }
   }
 
-  if (eventsLoading || profileLoading || baselineLoading) return <p style={{ color: C.slate }}>Loading…</p>;
+  if (eventsLoading || profileLoading || baselineLoading || recurringLoading) return <p style={{ color: C.slate }}>Loading…</p>;
 
   const { expenseCents, incomeCents } = monthTotals(events);
 
@@ -111,7 +113,7 @@ export function InsightsScreen() {
         <div style={{ height: '1rem' }} />
         <div style={{ position: 'relative' }}>
           <div style={{ filter: 'blur(5px)', opacity: 0.55, pointerEvents: 'none', userSelect: 'none' }} aria-hidden="true">
-            <ForecastCard forecastCents={148000} />
+            <ForecastCard forecast={{ expectedCents: 148000, lowCents: 148000, highCents: 148000 }} />
             <div style={{ height: '1rem' }} />
             <CategoryBreakdownCard breakdown={SAMPLE_BREAKDOWN} />
             <div style={{ height: '1rem' }} />
@@ -139,13 +141,29 @@ export function InsightsScreen() {
     );
   }
 
-  const trailing = trailingMonthlyExpenseTotals(events);
-  const hasTrend = trailing.some((v) => v > 0);
+  const recurringTotalCents = recurringExpenses.reduce((sum, r) => sum + r.amount_cents, 0);
+  const variableTrailing = trailingVariableExpenseTotals(events, recurringExpenses);
+  const hasTrend = variableTrailing.some((v) => v > 0);
+
   // With no prior months yet, project a day-one estimate from this month's spend so far
-  // rather than waiting for a few months of trend data — the trend math takes over the
-  // moment hasTrend flips true.
-  const forecastCents = hasTrend ? forecastNextMonthCents(trailing) : expenseCents > 0 ? extrapolateMonthCents(expenseCents) : null;
-  const forecastEstimated = !hasTrend && expenseCents > 0;
+  // rather than waiting for a few months of trend data — the trend math (which separately
+  // forecasts the unpredictable variable portion, then adds back known recurring bills)
+  // takes over the moment hasTrend flips true.
+  let forecast = null;
+  let forecastEstimated = false;
+  if (hasTrend) {
+    const variableForecast = forecastNextMonth(variableTrailing);
+    forecast = {
+      expectedCents: variableForecast.expectedCents + recurringTotalCents,
+      lowCents: variableForecast.lowCents + recurringTotalCents,
+      highCents: variableForecast.highCents + recurringTotalCents,
+    };
+  } else if (expenseCents > 0) {
+    const expected = extrapolateMonthCents(expenseCents);
+    forecast = { expectedCents: expected, lowCents: expected, highCents: expected };
+    forecastEstimated = true;
+  }
+
   const breakdown = categoryBreakdown(events);
 
   return (
@@ -153,7 +171,7 @@ export function InsightsScreen() {
       <ScreenHeader title="Insights" />
       <OverviewCard budget={budget} income={income} debts={debts} expenseCents={expenseCents} incomeCents={incomeCents} />
       <div style={{ height: '1rem' }} />
-      <ForecastCard forecastCents={forecastCents} estimated={forecastEstimated} />
+      <ForecastCard forecast={forecast} estimated={forecastEstimated} />
       <div style={{ height: '1rem' }} />
       <CategoryBreakdownCard breakdown={breakdown} />
       <div style={{ height: '1rem' }} />
@@ -221,7 +239,9 @@ function OverviewCard({ budget, income, debts, expenseCents, incomeCents }) {
   );
 }
 
-function ForecastCard({ forecastCents, estimated }) {
+function ForecastCard({ forecast, estimated }) {
+  const showBand = forecast && !estimated && forecast.highCents > forecast.lowCents;
+
   return (
     <Card style={{ marginBottom: '1rem' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.3rem' }}>
@@ -230,13 +250,15 @@ function ForecastCard({ forecastCents, estimated }) {
         </span>
         <span className="label">Next month's forecast</span>
       </div>
-      {forecastCents !== null ? (
+      {forecast !== null ? (
         <>
-          <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>{formatRands(Math.max(0, forecastCents))}</p>
+          <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>{formatRands(Math.max(0, forecast.expectedCents))}</p>
           <p style={{ color: C.slate, fontSize: '0.85rem', marginTop: '0.25rem' }}>
             {estimated
               ? "Early estimate, projected from this month's spending so far."
-              : 'Based on your spending trend over the last 3 months.'}
+              : showBand
+                ? `Likely between ${formatRands(Math.max(0, forecast.lowCents))} and ${formatRands(forecast.highCents)}, based on your recent trend plus known recurring bills.`
+                : 'Based on your spending trend plus known recurring bills.'}
           </p>
         </>
       ) : (

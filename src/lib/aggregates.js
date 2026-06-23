@@ -1,5 +1,10 @@
 // Aggregation helpers over raw financial_events rows, feeding the pure formulas in formulas.js.
 
+// Default essential/discretionary split over Atlas's fixed category set. Hardcoded rather than
+// user-editable — revisit if users push back on a specific category's classification.
+export const ESSENTIAL_CATEGORIES = ['groceries', 'fuel', 'health', 'transport', 'subscriptions', 'airtime_data'];
+export const DISCRETIONARY_CATEGORIES = ['takeaways', 'shopping', 'uncategorized'];
+
 function isSameMonth(date, year, month) {
   return date.getFullYear() === year && date.getMonth() === month;
 }
@@ -54,7 +59,7 @@ export function trailingMonthlyExpenseAverage(events, referenceDate = new Date()
 }
 
 // Same trailing window as trailingMonthlyExpenseAverage, but returned oldest-first (and
-// including zero months) for feeding into a trend formula like forecastNextMonthCents.
+// including zero months) for feeding into a trend formula like forecastNextMonth.
 export function trailingMonthlyExpenseTotals(events, referenceDate = new Date(), monthsBack = 3) {
   const totals = [];
   for (let i = monthsBack; i >= 1; i--) {
@@ -63,6 +68,41 @@ export function trailingMonthlyExpenseTotals(events, referenceDate = new Date(),
     totals.push(expenseCents);
   }
   return totals;
+}
+
+// Same trailing-window/fallback shape as trailingMonthlyExpenseAverage, but summing only
+// essential-category spend — the denominator for a "bare survival" runway figure, as opposed
+// to the full-lifestyle one.
+export function essentialMonthlyExpenseAverage(events, referenceDate = new Date(), monthsBack = 3) {
+  const essentialEvents = events.filter((e) => ESSENTIAL_CATEGORIES.includes(e.category));
+  return trailingMonthlyExpenseAverage(essentialEvents, referenceDate, monthsBack);
+}
+
+// Trailing monthly expense totals with each month's known recurring-bill total subtracted
+// (clamped at 0), isolating the unpredictable portion of spend so a trend forecast isn't
+// thrown off by bills that are already known rather than estimated.
+export function trailingVariableExpenseTotals(events, recurringExpenses, referenceDate = new Date(), monthsBack = 3) {
+  const recurringTotalCents = recurringExpenses.reduce((sum, r) => sum + r.amount_cents, 0);
+  return trailingMonthlyExpenseTotals(events, referenceDate, monthsBack).map((cents) =>
+    Math.max(0, cents - recurringTotalCents)
+  );
+}
+
+// Smooths the single-month savings rate over a trailing window so one irregular month
+// (a bonus, a medical bill) doesn't swing the headline number. Income is currently a single
+// static monthly figure in Atlas (not tracked historically), so this only smooths the
+// expense side — still the dominant source of month-to-month noise.
+export function trailingSavingsRateAverage(events, incomeCentsPerMonth, referenceDate = new Date(), monthsBack = 3) {
+  if (!incomeCentsPerMonth) return null;
+
+  const rates = [];
+  for (let i = 1; i <= monthsBack; i++) {
+    const d = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - i, 1);
+    const { expenseCents } = monthTotals(events, d);
+    rates.push((incomeCentsPerMonth - expenseCents) / incomeCentsPerMonth);
+  }
+
+  return rates.reduce((sum, r) => sum + r, 0) / rates.length;
 }
 
 // Current-month expense totals grouped by category, sorted highest first.

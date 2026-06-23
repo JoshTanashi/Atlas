@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { savingsRate, netWorth, runwayMonths, goalProjection, debtAmortization, forecastNextMonthCents } from '../lib/formulas.js';
+import { savingsRate, netWorth, runwayMonths, goalProjection, debtAmortization, debtPayoffPlan, forecastNextMonth, recentContributionPace } from '../lib/formulas.js';
 
 describe('savingsRate', () => {
   it('R20,000 income, R15,000 expense -> 25.0%', () => {
@@ -37,6 +37,19 @@ describe('runwayMonths', () => {
   });
 });
 
+describe('recentContributionPace', () => {
+  it('R6,000 saved over 3 months -> R2,000/month pace', () => {
+    const createdAt = new Date(2026, 0, 1);
+    const today = new Date(2026, 3, 1); // ~3 months later
+    expect(recentContributionPace(600_000, createdAt, today)).toBe(200_000);
+  });
+
+  it('floors at 1 month so a same-day goal does not divide by zero', () => {
+    const createdAt = new Date(2026, 0, 1);
+    expect(recentContributionPace(50_000, createdAt, createdAt)).toBe(50_000);
+  });
+});
+
 describe('goalProjection', () => {
   it('target-date mode: R50,000 target, R10,000 saved, 10 months away -> R4,000/month required', () => {
     const today = new Date(2026, 0, 1);
@@ -64,6 +77,22 @@ describe('goalProjection', () => {
   it('zero/negative contribution treated as unset, not divide-by-zero', () => {
     const goal = { target_cents: 1_000_000, saved_cents: 0, monthly_contribution_cents: 0 };
     expect(goalProjection(goal).mode).toBe('none');
+  });
+
+  it('target-date mode flags onTrack when recent pace meets the required contribution', () => {
+    const today = new Date(2026, 0, 1);
+    const goal = { target_cents: 5_000_000, saved_cents: 1_000_000, target_date: new Date(2026, 10, 1) };
+    const result = goalProjection(goal, today, 500_000); // required is 400,000/month
+    expect(result.onTrack).toBe(true);
+    expect(result.paceMonthsToGoal).toBe(8);
+  });
+
+  it('target-date mode flags behind-pace when recent contribution falls short, with a later projected date', () => {
+    const today = new Date(2026, 0, 1);
+    const goal = { target_cents: 5_000_000, saved_cents: 1_000_000, target_date: new Date(2026, 10, 1) };
+    const result = goalProjection(goal, today, 200_000); // required is 400,000/month
+    expect(result.onTrack).toBe(false);
+    expect(result.paceMonthsToGoal).toBe(20);
   });
 });
 
@@ -99,20 +128,59 @@ describe('debtAmortization', () => {
   });
 });
 
-describe('forecastNextMonthCents', () => {
-  it('R100/R120/R140 trend -> R160 projected next month', () => {
-    expect(forecastNextMonthCents([10_000, 12_000, 14_000])).toBe(16_000);
+describe('debtPayoffPlan', () => {
+  it('single debt matches debtAmortization\'s month count, with slightly less interest since the simulation caps the final payment at the remaining balance', () => {
+    const debt = { id: 'd1', balance_cents: 2_000_000, apr: 18, monthly_payment_cents: 100_000 };
+    const result = debtPayoffPlan([debt], 'avalanche');
+    expect(result.amortizing).toBe(true);
+    expect(result.months).toBe(24); // matches debtAmortization's ceil'd month count
+    expect(result.totalInterestCents).toBeLessThan(400_000); // debtAmortization's closed-form total assumes a full final payment
+    expect(result.totalInterestCents).toBeGreaterThan(390_000);
+  });
+
+  it('avalanche prioritizes the higher-APR debt first; snowball prioritizes the smaller balance first', () => {
+    const debts = [
+      { id: 'highApr', balance_cents: 800_000, apr: 30, monthly_payment_cents: 60_000 },
+      { id: 'lowApr', balance_cents: 200_000, apr: 10, monthly_payment_cents: 20_000 },
+    ];
+    const avalanche = debtPayoffPlan(debts, 'avalanche');
+    const snowball = debtPayoffPlan(debts, 'snowball');
+    expect(avalanche.order[0]).toBe('highApr');
+    expect(snowball.order[0]).toBe('lowApr');
+    // Prioritizing interest cost (avalanche) never costs more total interest than snowball
+    // for the same combined budget and debt set.
+    expect(avalanche.totalInterestCents).toBeLessThanOrEqual(snowball.totalInterestCents);
+  });
+
+  it('budget that cannot cover interest never clears within the safety bound -> non-amortizing', () => {
+    const debts = [{ id: 'd1', balance_cents: 2_000_000, apr: 18, monthly_payment_cents: 25_000 }];
+    const result = debtPayoffPlan(debts, 'avalanche');
+    expect(result.amortizing).toBe(false);
+  });
+});
+
+describe('forecastNextMonth', () => {
+  it('R100/R120/R140 trend -> R160 projected next month, with no band when the trend is exact', () => {
+    const result = forecastNextMonth([10_000, 12_000, 14_000]);
+    expect(result).toEqual({ expectedCents: 16_000, lowCents: 16_000, highCents: 16_000 });
   });
 
   it('flat trend projects the same value forward', () => {
-    expect(forecastNextMonthCents([10_000, 10_000, 10_000])).toBe(10_000);
+    const result = forecastNextMonth([10_000, 10_000, 10_000]);
+    expect(result).toEqual({ expectedCents: 10_000, lowCents: 10_000, highCents: 10_000 });
+  });
+
+  it('a single outlier month widens the band but does not skew the point estimate (Theil-Sen)', () => {
+    const result = forecastNextMonth([10_000, 50_000, 14_000]);
+    expect(result.expectedCents).toBe(16_000);
+    expect(result.highCents).toBeGreaterThan(result.expectedCents);
   });
 
   it('single month of data passes through unchanged (no trend to fit)', () => {
-    expect(forecastNextMonthCents([12_345])).toBe(12_345);
+    expect(forecastNextMonth([12_345])).toEqual({ expectedCents: 12_345, lowCents: 12_345, highCents: 12_345 });
   });
 
   it('no data returns null, not NaN', () => {
-    expect(forecastNextMonthCents([])).toBeNull();
+    expect(forecastNextMonth([])).toBeNull();
   });
 });
