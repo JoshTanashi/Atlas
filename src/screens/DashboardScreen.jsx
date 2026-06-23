@@ -62,7 +62,7 @@ export function DashboardScreen() {
     const months = runwayMonths(liquid, average);
     runway = months === null ? null : { months, estimated };
 
-    const { average: essentialAverage, estimated: essentialEstimated } = essentialMonthlyExpenseAverage(events);
+    const { average: essentialAverage, estimated: essentialEstimated } = essentialMonthlyExpenseAverage(events, undefined, undefined, profile?.essential_categories ?? undefined);
     const essentialMonths = runwayMonths(liquid, essentialAverage);
     essentialRunway = essentialMonths === null ? null : { months: essentialMonths, estimated: essentialEstimated };
   }

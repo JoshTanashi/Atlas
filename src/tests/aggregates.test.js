@@ -74,6 +74,15 @@ describe('essentialMonthlyExpenseAverage', () => {
     expect(result.average).toBe(30000);
     expect(result.estimated).toBe(false);
   });
+
+  it('honors a custom essentialCategories override instead of the default mapping', () => {
+    const events = [
+      ev(30000, 'expense', 1, 5, 'groceries'),
+      ev(50000, 'expense', 1, 6, 'takeaways'),
+    ];
+    const result = essentialMonthlyExpenseAverage(events, ref, 3, ['takeaways']);
+    expect(result.average).toBe(50000);
+  });
 });
 
 describe('trailingVariableExpenseTotals', () => {

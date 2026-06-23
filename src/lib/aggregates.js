@@ -1,7 +1,13 @@
 // Aggregation helpers over raw financial_events rows, feeding the pure formulas in formulas.js.
 
-// Default essential/discretionary split over Atlas's fixed category set. Hardcoded rather than
-// user-editable — revisit if users push back on a specific category's classification.
+// Atlas's fixed expense category set (shared with DetailExpander's category picker).
+export const ALL_CATEGORIES = [
+  'takeaways', 'groceries', 'fuel', 'health', 'airtime_data',
+  'shopping', 'subscriptions', 'transport', 'uncategorized',
+];
+
+// Default essential/discretionary split, used unless a profile has its own
+// essential_categories override (see essentialMonthlyExpenseAverage).
 export const ESSENTIAL_CATEGORIES = ['groceries', 'fuel', 'health', 'transport', 'subscriptions', 'airtime_data'];
 export const DISCRETIONARY_CATEGORIES = ['takeaways', 'shopping', 'uncategorized'];
 
@@ -72,9 +78,10 @@ export function trailingMonthlyExpenseTotals(events, referenceDate = new Date(),
 
 // Same trailing-window/fallback shape as trailingMonthlyExpenseAverage, but summing only
 // essential-category spend — the denominator for a "bare survival" runway figure, as opposed
-// to the full-lifestyle one.
-export function essentialMonthlyExpenseAverage(events, referenceDate = new Date(), monthsBack = 3) {
-  const essentialEvents = events.filter((e) => ESSENTIAL_CATEGORIES.includes(e.category));
+// to the full-lifestyle one. essentialCategories defaults to ESSENTIAL_CATEGORIES but callers
+// can pass a profile's own override (profiles.essential_categories).
+export function essentialMonthlyExpenseAverage(events, referenceDate = new Date(), monthsBack = 3, essentialCategories = ESSENTIAL_CATEGORIES) {
+  const essentialEvents = events.filter((e) => essentialCategories.includes(e.category));
   return trailingMonthlyExpenseAverage(essentialEvents, referenceDate, monthsBack);
 }
 

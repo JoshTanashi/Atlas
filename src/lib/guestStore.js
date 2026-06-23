@@ -7,6 +7,7 @@ const DEFAULT_GUEST_PROFILE = {
   pro_plan: null,
   pro_current_period_end: null,
   onboarding_completed_at: null,
+  essential_categories: null,
 };
 
 export function isGuestModeFlagSet() {

@@ -21,7 +21,7 @@ export function ProfileProvider({ children }) {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('display_name, is_pro, pro_plan, pro_current_period_end, onboarding_completed_at')
+      .select('display_name, is_pro, pro_plan, pro_current_period_end, onboarding_completed_at, essential_categories')
       .eq('id', session.user.id)
       .maybeSingle();
     if (!error && data) setProfile(data);
@@ -44,6 +44,20 @@ export function ProfileProvider({ children }) {
     setProfile((p) => ({ ...p, display_name: displayName }));
   }
 
+  async function updateEssentialCategories(categories) {
+    if (!session) {
+      setProfile(saveGuestProfile({ ...loadGuestProfile(), essential_categories: categories }));
+      return;
+    }
+    if (!navigator.onLine) throw new Error('OFFLINE');
+    const { error } = await supabase
+      .from('profiles')
+      .update({ essential_categories: categories })
+      .eq('id', session.user.id);
+    if (error) throw error;
+    setProfile((p) => ({ ...p, essential_categories: categories }));
+  }
+
   async function completeOnboarding() {
     const completedAt = new Date().toISOString();
     if (!session) {
@@ -59,7 +73,7 @@ export function ProfileProvider({ children }) {
   }
 
   return (
-    <ProfileContext.Provider value={{ profile, loading, refresh, updateDisplayName, completeOnboarding }}>
+    <ProfileContext.Provider value={{ profile, loading, refresh, updateDisplayName, updateEssentialCategories, completeOnboarding }}>
       {children}
     </ProfileContext.Provider>
   );

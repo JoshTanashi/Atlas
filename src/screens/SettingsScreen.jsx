@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import {
   User, Crown, Lock, MessageSquare, Info, LogOut, Trash2, Sun, Check,
-  Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, Banknote, Target,
+  Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, Banknote, Target, ListChecks,
 } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Button } from '../components/ui/Button.jsx';
@@ -15,6 +15,7 @@ import { friendlyAuthError } from '../lib/authError.js';
 import { navigate } from '../lib/nav.js';
 import { formatRands, randsToCents, centsToRands } from '../lib/money.js';
 import { debtAmortization, debtPayoffPlan } from '../lib/formulas.js';
+import { ALL_CATEGORIES, ESSENTIAL_CATEGORIES } from '../lib/aggregates.js';
 import { useAuth } from '../hooks/useAuth.jsx';
 import { useBaseline } from '../hooks/useBaseline.js';
 import { useEvents } from '../hooks/useEvents.jsx';
@@ -34,7 +35,7 @@ function IconBadge({ icon: Icon, color = C.sageDeep, background = C.cream }) {
 
 export function SettingsScreen() {
   const { session, signOut } = useAuth();
-  const { profile, updateDisplayName } = useProfile();
+  const { profile, updateDisplayName, updateEssentialCategories } = useProfile();
   const { income, budget, accounts, debts, setMonthlyIncome, setMonthlyBudget, upsertAccount, deleteAccount, upsertDebt, deleteDebt } = useBaseline();
   const { events } = useEvents();
   const { theme } = useTheme();
@@ -179,6 +180,24 @@ export function SettingsScreen() {
             {expanded === 'debts' && (
               <SettingsRowExpand>
                 <DebtsPanel debts={debts} upsertDebt={upsertDebt} deleteDebt={deleteDebt} describeBaselineError={describeBaselineError} />
+              </SettingsRowExpand>
+            )}
+          </AnimatePresence>
+
+          <SettingsRow
+            icon={ListChecks}
+            label="Essential categories"
+            value={profile?.essential_categories ? 'Customized' : 'Default'}
+            chevron
+            onClick={() => toggle('categories')}
+          />
+          <AnimatePresence initial={false}>
+            {expanded === 'categories' && (
+              <SettingsRowExpand>
+                <EssentialCategoriesPanel
+                  essentialCategories={profile?.essential_categories ?? ESSENTIAL_CATEGORIES}
+                  onSave={updateEssentialCategories}
+                />
               </SettingsRowExpand>
             )}
           </AnimatePresence>
@@ -602,6 +621,80 @@ function DebtPayoffPlanCard({ debts }) {
       <p style={{ color: C.slate, fontSize: '0.75rem', marginTop: '0.4rem' }}>
         Both put your combined payment toward one debt at a time, then roll it into the next once paid off. Highest-interest-first usually costs less overall.
       </p>
+    </div>
+  );
+}
+
+function EssentialCategoriesPanel({ essentialCategories, onSave }) {
+  const [selected, setSelected] = useState(new Set(essentialCategories));
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState(null);
+
+  function toggleCategory(category) {
+    setSaved(false);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) next.delete(category);
+      else next.add(category);
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    setError(null);
+    try {
+      await onSave([...selected]);
+      setSaved(true);
+    } catch (e) {
+      setError(e.message === 'OFFLINE' ? "You're offline — connect to save changes." : 'Could not save. Please try again.');
+    }
+  }
+
+  async function handleReset() {
+    setError(null);
+    try {
+      await onSave(null);
+      setSelected(new Set(ESSENTIAL_CATEGORIES));
+      setSaved(true);
+    } catch (e) {
+      setError(e.message === 'OFFLINE' ? "You're offline — connect to save changes." : 'Could not save. Please try again.');
+    }
+  }
+
+  return (
+    <div>
+      <p style={{ color: C.slate, fontSize: '0.85rem', marginBottom: '0.6rem' }}>
+        Choose which categories count toward your "Essential runway" — bare-survival spending if your income stopped.
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+        {ALL_CATEGORIES.map((category) => {
+          const active = selected.has(category);
+          return (
+            <button
+              key={category}
+              onClick={() => toggleCategory(category)}
+              style={{
+                padding: '0.4rem 0.7rem',
+                borderRadius: '999px',
+                border: `1.5px solid ${active ? C.sageDeep : C.line}`,
+                background: active ? 'rgba(91, 123, 111, 0.12)' : C.paper,
+                color: active ? C.sageDeep : C.slate,
+                fontSize: '0.8rem',
+                textTransform: 'capitalize',
+                cursor: 'pointer',
+              }}
+            >
+              {category.replace('_', ' ')}
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <Button onClick={handleSave} style={{ flex: 1 }}>Save</Button>
+        <Button variant="ghost" onClick={handleReset}>Reset to default</Button>
+      </div>
+      {saved && <p style={{ color: C.sageDeep, fontSize: '0.85rem', marginTop: '0.4rem' }}>Saved.</p>}
+      {error && <p style={{ color: C.over, fontSize: '0.85rem', marginTop: '0.4rem' }}>{error}</p>}
     </div>
   );
 }

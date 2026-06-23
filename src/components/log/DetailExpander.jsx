@@ -1,11 +1,7 @@
 import { useState } from 'react';
 import { C, F } from '../../tokens.js';
 import { Input } from '../ui/Input.jsx';
-
-const CATEGORIES = [
-  'takeaways', 'groceries', 'fuel', 'health', 'airtime_data',
-  'shopping', 'subscriptions', 'transport', 'uncategorized',
-];
+import { ALL_CATEGORIES as CATEGORIES } from '../../lib/aggregates.js';
 
 export function DetailExpander({ note, onNoteChange, category, onCategoryChange, direction, onDirectionChange }) {
   const [open, setOpen] = useState(false);
