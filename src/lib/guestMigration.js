@@ -84,6 +84,7 @@ export async function migrateGuestData(session) {
     .update({
       display_name: guestProfile.display_name,
       onboarding_completed_at: guestProfile.onboarding_completed_at,
+      essential_categories: guestProfile.essential_categories,
     })
     .eq('id', userId);
   if (profileError) throw profileError;
