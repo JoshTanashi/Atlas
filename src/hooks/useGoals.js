@@ -40,6 +40,7 @@ export function useGoals() {
       saved_cents: input.savedCents ?? 0,
       target_date: input.targetDate ?? null,
       monthly_contribution_cents: input.monthlyContributionCents ?? null,
+      apr: input.apr ?? null,
       created_at: new Date().toISOString(),
     };
 

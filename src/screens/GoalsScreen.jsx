@@ -15,14 +15,16 @@ export function GoalsScreen() {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [targetRands, setTargetRands] = useState('');
+  const [apr, setApr] = useState('');
   const [error, setError] = useState(null);
 
   async function handleCreate() {
     if (!name.trim() || !targetRands) return;
     try {
-      await createGoal({ name: name.trim(), targetCents: randsToCents(Number(targetRands)) });
+      await createGoal({ name: name.trim(), targetCents: randsToCents(Number(targetRands)), apr: apr ? Number(apr) : null });
       setName('');
       setTargetRands('');
+      setApr('');
       setCreating(false);
     } catch (e) {
       setError(e.message === 'OFFLINE' ? "You're offline — connect to create a goal." : 'Could not create goal.');
@@ -42,6 +44,7 @@ export function GoalsScreen() {
         <Card style={{ marginBottom: '1.25rem' }}>
           <Input label="Goal name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Emergency fund" />
           <Input label="Target amount (R)" type="number" value={targetRands} onChange={(e) => setTargetRands(e.target.value)} placeholder="10000" />
+          <Input label="Expected annual interest rate (APR %, optional)" type="number" value={apr} onChange={(e) => setApr(e.target.value)} placeholder="e.g. 5.5" />
           {error && <p style={{ color: C.over, fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
           <Button onClick={handleCreate} style={{ width: '100%' }}>Create goal</Button>
         </Card>

@@ -33,7 +33,23 @@ export function recentContributionPace(savedCents, createdAt, today = new Date()
   return Math.round(savedCents / monthsSinceCreated);
 }
 
-// goal: { target_cents, saved_cents, target_date?: Date, monthly_contribution_cents?: number }
+// Months (>= 0) for savedCents, compounding monthly at monthlyRate, plus a fixed monthly
+// contribution, to reach targetCents. monthlyRate === 0 falls back to plain linear division.
+// Standard ordinary-annuity future-value formula (FV = PV(1+r)^n + PMT[((1+r)^n-1)/r]) solved for n.
+function monthsToReachTarget(savedCents, targetCents, contributionCents, monthlyRate) {
+  const remaining = targetCents - savedCents;
+  if (remaining <= 0) return 0;
+  if (monthlyRate === 0) return Math.ceil(remaining / contributionCents);
+
+  const numerator = targetCents + contributionCents / monthlyRate;
+  const denominator = savedCents + contributionCents / monthlyRate;
+  const n = Math.log(numerator / denominator) / Math.log(1 + monthlyRate);
+  return Math.max(0, Math.ceil(n));
+}
+
+// goal: { target_cents, saved_cents, target_date?: Date, monthly_contribution_cents?: number, apr?: number }
+// apr (optional): annual interest rate the goal's saved balance earns, as a plain percentage
+// (e.g. 5.5), same convention as debts. Omitted/zero keeps the projection purely linear.
 // recentMonthlyContributionCents (optional): the goal's actual recent saving pace, used only
 // in target_date mode to flag whether the stated target is realistic given real behavior.
 // Returns one of:
@@ -42,16 +58,25 @@ export function recentContributionPace(savedCents, createdAt, today = new Date()
 //   { mode: 'none' }  -- neither field set (or contribution is <= 0), honest empty state
 export function goalProjection(goal, today = new Date(), recentMonthlyContributionCents = null) {
   const remainingCents = goal.target_cents - goal.saved_cents;
+  const monthlyRate = (goal.apr || 0) / 12 / 100;
 
   if (goal.target_date) {
     const monthsRemaining = monthsBetween(today, goal.target_date);
-    const requiredMonthlyCents = Math.ceil(remainingCents / monthsRemaining);
+    let requiredMonthlyCents;
+    if (monthlyRate === 0) {
+      requiredMonthlyCents = Math.ceil(remainingCents / monthsRemaining);
+    } else {
+      const growthFactor = Math.pow(1 + monthlyRate, monthsRemaining);
+      const futureSavedCents = goal.saved_cents * growthFactor;
+      const annuityFactor = (growthFactor - 1) / monthlyRate;
+      requiredMonthlyCents = Math.max(0, Math.ceil((goal.target_cents - futureSavedCents) / annuityFactor));
+    }
     const result = { mode: 'target_date', requiredMonthlyCents, monthsRemaining };
 
     if (recentMonthlyContributionCents !== null) {
       result.onTrack = recentMonthlyContributionCents >= requiredMonthlyCents;
       if (recentMonthlyContributionCents > 0) {
-        result.paceMonthsToGoal = Math.max(0, Math.ceil(remainingCents / recentMonthlyContributionCents));
+        result.paceMonthsToGoal = monthsToReachTarget(goal.saved_cents, goal.target_cents, recentMonthlyContributionCents, monthlyRate);
         result.paceProjectedDate = new Date(today.getFullYear(), today.getMonth() + result.paceMonthsToGoal, today.getDate());
       }
     }
@@ -60,7 +85,7 @@ export function goalProjection(goal, today = new Date(), recentMonthlyContributi
   }
 
   if (goal.monthly_contribution_cents && goal.monthly_contribution_cents > 0) {
-    const monthsToGoal = Math.max(0, Math.ceil(remainingCents / goal.monthly_contribution_cents));
+    const monthsToGoal = monthsToReachTarget(goal.saved_cents, goal.target_cents, goal.monthly_contribution_cents, monthlyRate);
     const projectedDate = new Date(today.getFullYear(), today.getMonth() + monthsToGoal, today.getDate());
     return { mode: 'contribution', monthsToGoal, projectedDate };
   }

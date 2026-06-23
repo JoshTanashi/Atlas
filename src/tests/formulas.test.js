@@ -94,6 +94,38 @@ describe('goalProjection', () => {
     expect(result.onTrack).toBe(false);
     expect(result.paceMonthsToGoal).toBe(20);
   });
+
+  it('explicit apr: 0 matches the no-apr result exactly (regression guard)', () => {
+    const today = new Date(2026, 0, 1);
+    const goal = { target_cents: 5_000_000, saved_cents: 1_000_000, target_date: new Date(2026, 10, 1), apr: 0 };
+    const result = goalProjection(goal, today);
+    expect(result.requiredMonthlyCents).toBe(400_000);
+    expect(result.monthsRemaining).toBe(10);
+  });
+
+  it('target-date mode requires a smaller monthly contribution when the saved balance earns interest', () => {
+    const today = new Date(2026, 0, 1);
+    const base = { target_cents: 5_000_000, saved_cents: 1_000_000, target_date: new Date(2026, 10, 1) };
+    const noInterest = goalProjection(base, today).requiredMonthlyCents;
+    const withInterest = goalProjection({ ...base, apr: 12 }, today).requiredMonthlyCents;
+    expect(withInterest).toBeLessThan(noInterest);
+  });
+
+  it('target-date mode clamps requiredMonthlyCents to 0 when compounding alone already clears the target', () => {
+    const today = new Date(2026, 0, 1);
+    const goal = { target_cents: 1_000_000, saved_cents: 970_000, target_date: new Date(2026, 1, 1), apr: 60 };
+    const result = goalProjection(goal, today);
+    expect(result.requiredMonthlyCents).toBe(0);
+  });
+
+  it('contribution mode reaches the target sooner when the saved balance earns interest', () => {
+    const today = new Date(2026, 0, 1);
+    const base = { target_cents: 4_000_000, saved_cents: 0, monthly_contribution_cents: 300_000 };
+    const noInterest = goalProjection(base, today).monthsToGoal;
+    const withInterest = goalProjection({ ...base, apr: 12 }, today).monthsToGoal;
+    expect(noInterest).toBe(14);
+    expect(withInterest).toBe(13);
+  });
 });
 
 describe('debtAmortization', () => {

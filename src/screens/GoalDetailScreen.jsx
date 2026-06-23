@@ -15,6 +15,7 @@ export function GoalDetailScreen({ goalId }) {
   const [contributionRands, setContributionRands] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [savedRands, setSavedRands] = useState('');
+  const [aprInput, setAprInput] = useState('');
   const [deleteError, setDeleteError] = useState(null);
   const [actionError, setActionError] = useState(null);
 
@@ -31,6 +32,7 @@ export function GoalDetailScreen({ goalId }) {
       saved_cents: goal.saved_cents,
       target_date: goal.target_date ? new Date(goal.target_date) : null,
       monthly_contribution_cents: goal.monthly_contribution_cents,
+      apr: goal.apr,
     },
     new Date(),
     recentMonthlyContributionCents
@@ -73,6 +75,17 @@ export function GoalDetailScreen({ goalId }) {
     }
   }
 
+  async function handleSetApr() {
+    if (!aprInput) return;
+    setActionError(null);
+    try {
+      await updateGoal(goal.id, { apr: Number(aprInput) });
+      setAprInput('');
+    } catch (e) {
+      setActionError(describeActionError(e));
+    }
+  }
+
   async function handleDelete() {
     setDeleteError(null);
     try {
@@ -95,6 +108,9 @@ export function GoalDetailScreen({ goalId }) {
         <p style={{ fontFamily: F.serif, fontSize: '1.6rem', color: C.ink }}>
           {formatRands(goal.saved_cents)} <span style={{ fontSize: '1rem', color: C.slate }}>of {formatRands(goal.target_cents)}</span>
         </p>
+        {goal.apr > 0 && (
+          <p style={{ color: C.sageDeep, fontSize: '0.8rem', marginTop: '0.2rem' }}>Earning {goal.apr}% APR</p>
+        )}
 
         {projection.mode === 'target_date' && (
           <>
@@ -148,6 +164,17 @@ export function GoalDetailScreen({ goalId }) {
         <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
           <Input value={targetDate} onChange={(e) => setTargetDate(e.target.value)} type="date" />
           <Button onClick={handleSetTargetDate} style={{ height: 'fit-content' }}>Set</Button>
+        </div>
+      </Card>
+
+      <Card style={{ marginBottom: '1rem' }}>
+        <span className="label">Interest rate</span>
+        <p style={{ color: C.slate, fontSize: '0.85rem', marginTop: '0.3rem', marginBottom: '0.5rem' }}>
+          {goal.apr > 0 ? `Currently earning ${goal.apr}% APR.` : "Set this if this goal's savings earn interest, to factor compounding into your projection."}
+        </p>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <Input value={aprInput} onChange={(e) => setAprInput(e.target.value)} type="number" placeholder="APR %" />
+          <Button onClick={handleSetApr} style={{ height: 'fit-content' }}>Set</Button>
         </div>
       </Card>
 
