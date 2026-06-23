@@ -14,6 +14,7 @@ import { AccountsStep } from './steps/AccountsStep.jsx';
 import { DebtsStep } from './steps/DebtsStep.jsx';
 import { ChartGoalsStep } from './steps/ChartGoalsStep.jsx';
 import { GoalStep } from './steps/GoalStep.jsx';
+import { PlanReadyStep } from './steps/PlanReadyStep.jsx';
 import { TutorialStep } from './steps/TutorialStep.jsx';
 
 const STEPS = [
@@ -27,6 +28,7 @@ const STEPS = [
   { key: 'debts', category: 'accounts-debts' },
   { key: 'chart-goals', category: null },
   { key: 'goal', category: 'goals' },
+  { key: 'plan-ready', category: null },
   { key: 'tutorial', category: null },
 ];
 
@@ -86,6 +88,7 @@ export function OnboardingFlow() {
             {step === 'debts' && <DebtsStep onNext={next} />}
             {step === 'chart-goals' && <ChartGoalsStep onNext={next} />}
             {step === 'goal' && <GoalStep onNext={next} />}
+            {step === 'plan-ready' && <PlanReadyStep onNext={next} />}
             {step === 'tutorial' && <TutorialStep onFinish={finish} />}
           </motion.div>
         </AnimatePresence>

@@ -1,36 +1,22 @@
 import { Wallet, Target, Sparkles, ShieldCheck } from 'lucide-react';
-import { C, F } from '../../../tokens.js';
-import { Card } from '../../../components/ui/Card.jsx';
-import { Button } from '../../../components/ui/Button.jsx';
+import { StepHeading } from '../components/StepShell.jsx';
+import { SlideCarousel } from '../components/SlideCarousel.jsx';
 
-const BENEFITS = [
-  { icon: Wallet, text: 'Log spending in seconds and see where your money actually goes.' },
-  { icon: Target, text: 'Set savings goals and watch your progress build automatically.' },
-  { icon: Sparkles, text: 'Pro unlocks AI insights and a forecast of your month ahead.' },
-  { icon: ShieldCheck, text: 'Your data is private, encrypted, and yours to export any time.' },
+const BENEFIT_SLIDES = [
+  { icon: Wallet, label: 'Know where it goes', text: 'Log spending in seconds and see where your money actually goes, category by category.' },
+  { icon: Target, label: 'Goals that build themselves', text: 'Set a savings goal and watch your progress build automatically as you log.' },
+  { icon: Sparkles, label: 'AI insights, on demand', text: 'Pro unlocks a forecast of your month ahead and an honest read on your recent spending.' },
+  { icon: ShieldCheck, label: 'Private by design', text: 'Your data is encrypted and yours to export any time — no ads, no selling your data.' },
 ];
 
 export function IntroStep({ onNext }) {
   return (
     <div>
-      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <p style={{ fontFamily: F.serif, fontSize: '2rem', color: C.ink, marginBottom: '0.5rem' }}>Welcome to Atlas</p>
-        <p style={{ color: C.slate, fontSize: '0.95rem', lineHeight: 1.5 }}>
-          A calm, honest journal for your money. A few quick questions will help Atlas understand your finances
-          so it can work for you from day one.
-        </p>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem', marginBottom: '2rem' }}>
-        {BENEFITS.map(({ icon: Icon, text }) => (
-          <Card key={text} style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem' }}>
-            <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '2.25rem', height: '2.25rem', borderRadius: '50%', background: C.cream, flexShrink: 0 }}>
-              <Icon size={18} strokeWidth={2} color={C.sageDeep} />
-            </span>
-            <p style={{ color: C.ink, fontSize: '0.88rem', lineHeight: 1.4, paddingTop: '0.2rem' }}>{text}</p>
-          </Card>
-        ))}
-      </div>
-      <Button onClick={onNext} style={{ width: '100%' }}>Get started</Button>
+      <StepHeading
+        title="Welcome to Atlas"
+        subtitle="A calm, honest journal for your money. A few quick questions will help Atlas work for you from day one."
+      />
+      <SlideCarousel slides={BENEFIT_SLIDES} onFinish={onNext} finishLabel="Get started" />
     </div>
   );
 }
