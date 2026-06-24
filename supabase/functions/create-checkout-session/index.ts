@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const { plan } = await req.json().catch(() => ({}));
+  const { plan, discount } = await req.json().catch(() => ({}));
   const priceId = PRICE_IDS[plan];
   if (!priceId) {
     return new Response(JSON.stringify({ error: "Invalid plan" }), {
@@ -32,6 +32,7 @@ Deno.serve(async (req: Request) => {
       headers: { "Content-Type": "application/json" },
     });
   }
+  const exitOfferCouponId = Deno.env.get("STRIPE_EXIT_OFFER_COUPON_ID");
 
   const callerClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -60,6 +61,7 @@ Deno.serve(async (req: Request) => {
     customer_email: profile?.stripe_customer_id ? undefined : user.email,
     client_reference_id: user.id,
     line_items: [{ price: priceId, quantity: 1 }],
+    discounts: discount && exitOfferCouponId ? [{ coupon: exitOfferCouponId }] : undefined,
     success_url: `${SITE_URL}/insights?checkout=success`,
     cancel_url: `${SITE_URL}/insights`,
     metadata: { supabase_user_id: user.id, plan },
