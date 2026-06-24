@@ -3,7 +3,7 @@ import { InfoChartStep } from '../components/InfoChartStep.jsx';
 
 const DATA = [
   { label: 'Untracked', value: 850 },
-  { label: 'Tracked in Atlas', value: 320 },
+  { label: 'Tracked in Atlas', value: 320, featured: true },
 ];
 
 export function ChartRecurringStep({ onNext }) {

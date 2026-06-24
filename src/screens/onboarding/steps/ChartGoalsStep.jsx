@@ -3,7 +3,7 @@ import { InfoChartStep } from '../components/InfoChartStep.jsx';
 
 const DATA = [
   { label: 'No goal set', value: 1 },
-  { label: 'With a goal', value: 3 },
+  { label: 'With a goal', value: 3, featured: true },
 ];
 
 export function ChartGoalsStep({ onNext }) {
