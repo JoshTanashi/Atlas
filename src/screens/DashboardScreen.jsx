@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Percent, Wallet, Hourglass, PieChart as PieIcon, Sparkles, Crown } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
@@ -145,6 +145,7 @@ export function DashboardScreen() {
         </div>
       ) : (
         <EmptyState
+          icon={Wallet}
           title="Add your income and balances"
           body="Unlock your savings rate, net worth, and runway."
           action={<Button variant="secondary" onClick={() => navigate('/settings')}>Set up in Settings →</Button>}
@@ -155,9 +156,14 @@ export function DashboardScreen() {
         <Card>
           <span className="label">Recent activity</span>
           {events.length === 0 ? (
-            <p style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.5rem' }}>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.3 }}
+              style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.5rem' }}
+            >
               Log your first entry — tap the + button.
-            </p>
+            </motion.p>
           ) : (
             events.slice(0, 5).map((e) => (
               <div key={e.id} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.5rem 0', borderTop: `1px solid ${C.line}` }}>
@@ -228,7 +234,9 @@ function MiniCategoryCard({ breakdown }) {
         <span className="label">Top categories</span>
       </div>
       {total === 0 ? (
-        <p style={{ color: C.slate, fontSize: '0.9rem' }}>No expenses logged this month yet.</p>
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} style={{ color: C.slate, fontSize: '0.9rem' }}>
+          No expenses logged this month yet.
+        </motion.p>
       ) : (
         breakdown.map(({ category, cents }) => (
           <div key={category} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.5rem' }}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { PieChart as RPieChart, Pie, Cell, Tooltip } from 'recharts';
 import { TrendingUp, Sparkles, Crown, PieChart, Target, Banknote, PiggyBank, CreditCard } from 'lucide-react';
 import { C, F } from '../tokens.js';
@@ -260,9 +260,9 @@ function ForecastCard({ forecast, estimated }) {
           </p>
         </>
       ) : (
-        <p style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.4rem' }}>
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} style={{ color: C.slate, fontSize: '0.9rem', marginTop: '0.4rem' }}>
           Log an expense to see an early forecast.
-        </p>
+        </motion.p>
       )}
     </Card>
   );
@@ -280,7 +280,9 @@ function CategoryBreakdownCard({ breakdown }) {
         <span className="label">Spending by category</span>
       </div>
       {total === 0 ? (
-        <p style={{ color: C.slate, fontSize: '0.9rem' }}>No expenses logged this month yet.</p>
+        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} style={{ color: C.slate, fontSize: '0.9rem' }}>
+          No expenses logged this month yet.
+        </motion.p>
       ) : (
         <>
           <div style={{ width: '100%', height: 200, marginBottom: '0.6rem' }}>

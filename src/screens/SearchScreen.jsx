@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { SearchX } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Input } from '../components/ui/Input.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
@@ -31,7 +32,7 @@ export function SearchScreen() {
       />
 
       {query.trim() && results.length === 0 && (
-        <EmptyState title="No matches" body={`Nothing found for "${query}".`} />
+        <EmptyState icon={SearchX} title="No matches" body={`Nothing found for "${query}".`} />
       )}
 
       {results.map((e) => (

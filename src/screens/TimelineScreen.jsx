@@ -1,3 +1,5 @@
+import { motion } from 'framer-motion';
+import { Inbox } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
 import { ScreenHeader } from '../components/ui/ScreenHeader.jsx';
@@ -29,6 +31,7 @@ export function TimelineScreen() {
   if (events.length === 0) {
     return (
       <EmptyState
+        icon={Inbox}
         title="Your timeline is empty"
         body="Every entry you log appears here, grouped by day. Tap the + button to log your first one."
       />
@@ -45,13 +48,22 @@ export function TimelineScreen() {
   return (
     <div>
       <ScreenHeader title="Timeline" showSearch />
-      {[...groups.entries()].map(([label, items]) => (
-        <div key={label} style={{ marginBottom: '1.5rem' }}>
+      {[...groups.entries()].map(([label, items], groupIndex) => (
+        <motion.div
+          key={label}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: groupIndex * 0.06 }}
+          style={{ marginBottom: '1.5rem' }}
+        >
           <span className="label">{label}</span>
           <div style={{ marginTop: '0.5rem' }}>
-            {items.map((e) => (
-              <div
+            {items.map((e, i) => (
+              <motion.div
                 key={e.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: groupIndex * 0.06 + Math.min(i, 8) * 0.03 }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -70,10 +82,10 @@ export function TimelineScreen() {
                 <span style={{ fontFamily: F.serif, color: e.direction === 'income' ? C.sageDeep : C.ink }}>
                   {e.direction === 'income' ? '+' : '-'}{formatRands(e.amount_cents)}
                 </span>
-              </div>
+              </motion.div>
             ))}
           </div>
-        </div>
+        </motion.div>
       ))}
     </div>
   );

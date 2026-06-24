@@ -51,7 +51,7 @@ export function GoalsScreen() {
       )}
 
       {goals.length === 0 && !creating && (
-        <EmptyState title="No goals yet" body="Create one to track progress toward something you're saving for." />
+        <EmptyState icon={Target} title="No goals yet" body="Create one to track progress toward something you're saving for." />
       )}
 
       {goals.map((g) => {

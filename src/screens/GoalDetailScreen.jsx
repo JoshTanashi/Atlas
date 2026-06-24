@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Target } from 'lucide-react';
 import { C, F } from '../tokens.js';
 import { Card } from '../components/ui/Card.jsx';
 import { EmptyState } from '../components/ui/EmptyState.jsx';
@@ -25,7 +25,7 @@ export function GoalDetailScreen({ goalId }) {
   if (loading) return <p style={{ color: C.slate }}>Loading…</p>;
 
   const goal = goals.find((g) => g.id === goalId);
-  if (!goal) return <EmptyState title="Goal not found" body="It may have been deleted." />;
+  if (!goal) return <EmptyState icon={Target} title="Goal not found" body="It may have been deleted." />;
 
   const recentMonthlyContributionCents = recentContributionPace(goal.saved_cents, new Date(goal.created_at));
 

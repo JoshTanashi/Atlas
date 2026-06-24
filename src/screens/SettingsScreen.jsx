@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   User, Crown, Lock, MessageSquare, Info, LogOut, Trash2, Sun, Check,
   Landmark, PiggyBank, TrendingUp, Wallet, CreditCard, Download, Banknote, Target, ListChecks,
@@ -56,7 +56,12 @@ export function SettingsScreen() {
     <div>
       <ScreenHeader title="Settings" />
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1.5rem' }}>
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        style={{ display: 'flex', alignItems: 'center', gap: '0.9rem', marginBottom: '1.5rem' }}
+      >
         <span
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -80,7 +85,7 @@ export function SettingsScreen() {
             <p style={{ color: C.slate, fontSize: '0.8rem', marginTop: '0.2rem' }}>Free plan</p>
           )}
         </div>
-      </div>
+      </motion.div>
 
       <SettingsGroupList>
         <SettingsGroup label="About me">
